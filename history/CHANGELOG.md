@@ -1,0 +1,13 @@
+# Build Changelog (newest first)
+
+Each completed task adds a row at the **top**. Keep it one line; details go in `TASK-XX.md`.
+
+| Date | Task | Title | Status | Agent / chat | Entry |
+|------|------|-------|--------|--------------|-------|
+| 2026-07-15 | TASK-02 | Local infra (Mongo RS + Redis + Qdrant + MinIO) & config | ✅ done (boot pending install) | initial setup chat | [TASK-02.md](./TASK-02.md) |
+| 2026-07-15 | TASK-01 | Monorepo & tooling foundation | ✅ done (install pending) | initial setup chat | [TASK-01.md](./TASK-01.md) |
+
+<!--
+Example row once TASK-01 is done:
+| 2026-07-16 | TASK-01 | Monorepo & tooling | ✅ done | <chat link> | [TASK-01.md](./TASK-01.md) |
+-->

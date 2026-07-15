@@ -1,0 +1,69 @@
+import { z } from 'zod';
+
+/**
+ * Environment contract. Validated once at boot; the app fails fast with a clear
+ * message if anything required is missing or malformed. See specs/09-devops-deployment.md.
+ */
+export const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().int().positive().default(3000),
+  API_PREFIX: z.string().default('api'),
+  CORS_ORIGINS: z.string().default('http://localhost:5173'),
+
+  // MongoDB (single-node replica set locally so transactions work)
+  MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
+
+  // Redis (cache + BullMQ)
+  REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
+
+  // Qdrant (vector DB for RAG)
+  QDRANT_URL: z.string().url().default('http://localhost:6333'),
+  QDRANT_API_KEY: z.string().optional(),
+
+  // Object storage (MinIO in dev — S3-compatible; Cloudflare R2 in prod)
+  STORAGE_ENDPOINT: z.string().optional(),
+  STORAGE_REGION: z.string().default('auto'),
+  STORAGE_BUCKET: z.string().default('ai-projectos'),
+  STORAGE_ACCESS_KEY_ID: z.string().optional(),
+  STORAGE_SECRET_ACCESS_KEY: z.string().optional(),
+  STORAGE_FORCE_PATH_STYLE: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+
+  // Auth / JWT
+  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be >= 16 chars'),
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be >= 16 chars'),
+  JWT_REFRESH_TTL: z.string().default('7d'),
+
+  // Email (console transport in dev)
+  MAIL_TRANSPORT: z.enum(['console', 'smtp']).default('console'),
+  MAIL_FROM: z.string().default('no-reply@ai-projectos.local'),
+  SMTP_URL: z.string().optional(),
+
+  // AI (added in the AI phase; optional until then)
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+
+  // Observability (optional locally)
+  SENTRY_DSN: z.string().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Nest ConfigModule `validate` hook. Throws (aborting boot) on invalid env.
+ */
+export function validateEnv(config: Record<string, unknown>): Env {
+  const parsed = envSchema.safeParse(config);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
+      .join('\n');
+    throw new Error(`Invalid environment configuration:\n${issues}`);
+  }
+  return parsed.data;
+}
