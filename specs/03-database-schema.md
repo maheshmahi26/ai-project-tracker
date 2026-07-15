@@ -108,7 +108,7 @@ Indexes:
 - `{ orgId:1, projectId:1, status:1, order:1 }` (board)
 - `{ orgId:1, sprintId:1 }`, `{ orgId:1, assigneeId:1, status:1 }`
 - `{ orgId:1, key:1 } unique`, `{ parentId:1 }`
-- Atlas Search index on `title`, `description` (see [API/Search](./04-api-design.md)).
+- MongoDB **text index** on `title`, `description` for full-text search (see [API/Search](./04-api-design.md)).
 
 ## 6. Comments
 ```
@@ -195,19 +195,21 @@ Indexes: `{ orgId:1, sessionId:1, createdAt:1 }`.
 ```
 Indexes: `{ orgId:1, status:1 }`.
 
-## 15. Embeddings (RAG chunks + vectors)
+## 15. Embeddings (RAG chunk metadata — vectors live in Qdrant)
 ```
 {
   _id, orgId, documentId, projectId?,
   chunkIndex, text,
-  embedding: [Float],               // e.g. 768-dim
+  qdrantPointId,                    // reference to the vector stored in Qdrant
   metadata: { page?, heading?, tokens },
   createdAt
 }
 ```
+> The actual float vector is **not** stored in MongoDB. It lives in a **Qdrant collection** (one per environment) as a point whose `id` = `qdrantPointId` and whose payload carries `{ orgId, projectId, documentId, chunkIndex }` for filtered ANN search. MongoDB keeps the human-readable chunk text + metadata so we can render citations after Qdrant returns matching point ids.
+
 Indexes:
-- **Atlas Vector Search index** on `embedding` (cosine), filtered by `orgId`/`projectId`.
-- `{ orgId:1, documentId:1, chunkIndex:1 }`.
+- `{ orgId:1, documentId:1, chunkIndex:1 }`, `{ qdrantPointId:1 }`.
+- **Qdrant** (external): vector index (cosine) with payload filters on `orgId`/`projectId` for tenant isolation.
 
 ## 16. AIExecutions (observability for every agent run)
 ```
@@ -231,11 +233,11 @@ Indexes: `{ orgId:1, createdAt:-1 }`, `{ userId:1, createdAt:-1 }`.
 |----------|-----------|-----------|
 | Memberships as a collection (not embedded array) | Orgs can have many members; avoids unbounded array growth | Extra lookup; mitigated by index + cache |
 | Subtasks via `parentId` on Tasks (not separate collection) | Same shape/behaviour as tasks, one board engine | Recursive depth limited to 1 by rule |
-| Embeddings separate from Documents | Chunks are many-per-doc, queried by vector index | Two collections to keep consistent |
+| Embeddings metadata in Mongo, vectors in Qdrant | Qdrant does fast filtered ANN; Mongo keeps text for citations | Must keep the two in sync (delete doc → delete Qdrant points) |
 | Soft delete everywhere + retention window | Enables "undo delete" & audit; safer than hard delete | Storage + must filter `isDeleted` everywhere (query middleware) |
 | Human task keys via per-project counter | UX ("AUTH-123") | Counter increment needs atomic `$inc` / findOneAndUpdate |
-| One datastore for docs + vectors (Atlas) | Fewer systems for v1 | Dedicated vector DB scales better later |
+| Self-hosted Mongo + Qdrant (no Atlas) | Fully free & local-first; no cloud lock-in | Run/operate two datastores yourself |
 
 ## Transactions
 
-Multi-document invariants (e.g. move task between sprints + update sprint point totals, or create task + bump project counter) use **MongoDB multi-document transactions** on a replica set (Atlas provides this). Single-doc updates stay atomic without transactions.
+Multi-document invariants (e.g. move task between sprints + update sprint point totals, or create task + bump project counter) use **MongoDB multi-document transactions**, which require a **replica set**. Locally we run MongoDB as a **single-node replica set** in Docker so transactions work in dev exactly as in prod. Single-doc updates stay atomic without transactions.

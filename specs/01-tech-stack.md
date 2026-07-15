@@ -26,8 +26,9 @@ Every choice below includes a **why** and a **trade-off**, because in interviews
 |------|-----|-------------------------|
 | **Node.js + TypeScript** | Same language as FE, shared types, huge ecosystem | CPU-bound work needs workers/queues |
 | **NestJS** | Opinionated DI, modules, guards, interceptors, filters → maps 1:1 to Clean Architecture | Boilerplate; pays off at scale |
-| **MongoDB + Mongoose** | Flexible documents fit nested tasks/comments; Atlas Search + Vector Search built in | Weaker multi-doc txns than SQL (Mongo txns used where needed) |
-| **Redis (Upstash)** | Cache, rate-limit buckets, BullMQ backing store, session/refresh helpers | Another moving part; managed by Upstash |
+| **MongoDB + Mongoose** (self-hosted / local) | Flexible documents fit nested tasks/comments; runs locally via Docker, no cloud lock-in | No Atlas Search/Vector — we use Mongo text indexes for full-text + **Qdrant** for vectors |
+| **Qdrant** (self-hosted, free & OSS) | Purpose-built vector DB for RAG; runs locally via Docker, generous free cloud tier | A second datastore to run; worth it for real semantic search without Atlas |
+| **Redis** (local Docker / Upstash) | Cache, rate-limit buckets, BullMQ backing store, session/refresh helpers | Another moving part; local in dev, Upstash optional in prod |
 | **BullMQ** | Reliable background jobs (email, embeddings, reports) on Redis | Requires Redis; acceptable |
 | **JWT + Passport** | Stateless auth, standard strategies (local, jwt, google) | Token revocation needs a denylist / short TTL + refresh |
 | **Swagger (OpenAPI)** | Auto-generated, always-accurate API docs from decorators | — |
@@ -35,8 +36,10 @@ Every choice below includes a **why** and a **trade-off**, because in interviews
 
 ## Database & Search
 
-- **MongoDB Atlas** — managed cluster, backups, and crucially **Atlas Search** (full-text) + **Atlas Vector Search** (semantic/RAG). One datastore for documents *and* vectors keeps the stack lean.
-- Trade-off: a dedicated vector DB (Pinecone/Qdrant) scales embeddings better, but Atlas Vector Search avoids a second system for v1.
+- **MongoDB (local / self-hosted)** — primary datastore, run as a **single-node replica set** via Docker so multi-document transactions work in dev. No dependency on MongoDB Atlas.
+- **Full-text search** — MongoDB **native text indexes** (`$text`) power global/task/project search. Free, local, no Atlas Search needed. (If we ever outgrow it we can move to a dedicated search engine behind the same `SearchService` port.)
+- **Vector / semantic search (RAG)** — **Qdrant**, an open-source vector database run locally via Docker (or its free managed cloud tier). Stores chunk embeddings; MongoDB keeps the chunk text + metadata and a `qdrantPointId` reference.
+- Trade-off: two datastores instead of one, but everything is free and self-hostable, and Qdrant gives real ANN vector search with payload filtering (org/project isolation) that a naive Mongo approach can't match.
 
 ## AI
 
@@ -64,8 +67,9 @@ Every choice below includes a **why** and a **trade-off**, because in interviews
 |-------|----------|-----|
 | Frontend | **Vercel** | Zero-config Vite deploys, edge CDN, previews |
 | Backend | **Railway** (or Render) | Simple container hosting, managed env/secrets |
-| Database | **MongoDB Atlas** | Managed + Search + Vector Search |
-| Redis | **Upstash** | Serverless Redis, per-request pricing |
+| Database | **Self-hosted MongoDB** (Docker on the backend host / VM) | Free, portable; local in dev, containerized in prod. Atlas remains an optional drop-in later. |
+| Vector DB | **Qdrant** (Docker sidecar, or free Qdrant Cloud) | Free semantic search for RAG |
+| Redis | **Redis** (Docker) or **Upstash** free tier | Cache + queue |
 
 ## Monitoring & Observability
 

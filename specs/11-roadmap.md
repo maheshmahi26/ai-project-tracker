@@ -51,7 +51,7 @@ Monorepo + tooling before any feature code.
 ## Phase 4 — Tasks (+ Sprints, Comments, Labels, Files)
 **Goal:** the core work-management surface.
 - `BE` Sprints module (plan/start/complete, point totals via transaction).
-- `BE` Tasks module: CRUD, subtasks (`parentId`), assign, move, status/priority/deadline, **bulk-update/bulk-delete**, soft-delete + undo; filter/sort/paginate; Atlas Search index on title/description.
+- `BE` Tasks module: CRUD, subtasks (`parentId`), assign, move, status/priority/deadline, **bulk-update/bulk-delete**, soft-delete + undo; filter/sort/paginate; MongoDB text index on title/description for search.
 - `BE` Comments (rich text, mentions → notifications), Labels, Files (R2/S3 presigned upload/download).
 - `BE` Notifications module + email/notification jobs (BullMQ).
 - `FE` tasks feature: **Kanban board** (optimistic drag), **task table** (filter/sort/search/paginate, bulk actions), **task detail** (TipTap description, comments, subtasks, files, activity), notifications center; infinite scroll.
@@ -82,7 +82,7 @@ Monorepo + tooling before any feature code.
 ## Phase 7 — RAG & Memory
 **Goal:** ground the agent in user documents + recall past context.
 - `AI` Documents module: presign → confirm → **BullMQ indexing job** (parse pdf/docx/md/txt → chunk → Gemini embeddings → Embeddings collection); status tracking + retries.
-- `AI` Atlas Vector Search index (org/project filtered); `searchKnowledge` tool + `POST /search/semantic`; citations.
+- `AI` Qdrant collection + client (payload-filtered by org/project); `searchKnowledge` tool + `POST /search/semantic`; citations.
 - `AI` RAG features: Q&A over docs; **generate tasks from PRD**; generate sprint from documents (propose→confirm).
 - `AI` **Conversation memory**: recent-turns + rolling summary + entity-reference resolver (e.g. "tasks we discussed yesterday").
 - `FE` documents feature: drag-drop upload, indexing status, semantic search UI; chat surfaces citations.
@@ -94,7 +94,7 @@ Monorepo + tooling before any feature code.
 **Goal:** production-live on the target platforms.
 - `INFRA` Multi-stage Dockerfiles (api, worker, web-parity); non-root; healthchecks.
 - `INFRA` CI/CD: deploy-web (Vercel), deploy-api + worker (Railway), migration/index step, health-gated cutover, rollback path.
-- `INFRA` Provision Atlas (+ Search/Vector indexes as code), Upstash, R2, Google OAuth creds, Sentry/Better Stack/OTel; secrets in platform managers.
+- `INFRA` Provision self-hosted Mongo (replica set) + Qdrant + Redis containers, R2, Google OAuth creds, Sentry/Better Stack/OTel; secrets in platform managers.
 - `INFRA` Rate limits + caching tuned for free tiers (esp. Gemini).
 - **DoD:** production URLs live; preview deploys per PR; observability dashboards receiving data; smoke E2E passes against prod-like preview.
 

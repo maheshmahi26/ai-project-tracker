@@ -18,7 +18,8 @@ Document { status: 'uploaded' }  ──► enqueue "index-document" job
 2. Parse → raw text        (pdf-parse / mammoth / remark / plain)
 3. Chunk                   (recursive splitter, ~500–800 tokens, ~15% overlap)
 4. Embed each chunk        (Gemini embeddings, batched, rate-limited)
-5. Store Embeddings docs   (text + vector + metadata{page,heading})
+5. Upsert vectors → Qdrant (point per chunk, payload={orgId,projectId,documentId,chunkIndex})
+5b. Store Embeddings docs in Mongo (text + qdrantPointId + metadata{page,heading})
 6. Document.status = 'indexed', chunkCount = N
    (on error → status:'failed', error message; job retried w/ backoff)
 ```
@@ -27,11 +28,12 @@ Why async: parsing + embedding is slow and rate-limited; doing it in a worker ke
 
 ### Storage & retrieval
 
-- Chunks + vectors live in the **Embeddings** collection with an **Atlas Vector Search** index (cosine similarity), filtered by `orgId` (and optionally `projectId`) so tenants never see each other's data.
+- Vectors live in a **Qdrant** collection (cosine distance) with **payload filters** on `orgId` (and optionally `projectId`) so tenants never see each other's data. Chunk text + metadata live in the Mongo **Embeddings** collection, joined back by `qdrantPointId`.
 - **Retrieval** (`searchKnowledge` tool / `POST /search/semantic`):
 ```
-query → embed query → Atlas $vectorSearch (topK, filter orgId/projectId)
-      → optional re-rank / dedupe → assemble context (with citations: docId, page)
+query → embed query (Gemini) → Qdrant search (topK, payload filter orgId/projectId)
+      → map point ids → Mongo Embeddings (chunk text + citations: docId, page)
+      → optional re-rank / dedupe → assemble grounded context
       → feed to Gemini with a grounded prompt
       → answer + source references shown in chat
 ```
@@ -46,7 +48,7 @@ query → embed query → Atlas $vectorSearch (topK, filter orgId/projectId)
 
 | Decision | Rationale | Trade-off |
 |----------|-----------|-----------|
-| Atlas Vector Search (not Pinecone/Qdrant) | One datastore for v1, org-filtered | Dedicated vector DB scales/features better later |
+| Qdrant (self-hosted, free) for vectors | Purpose-built ANN + payload filtering, runs locally, no Atlas | Second datastore to run + keep in sync with Mongo |
 | Async embedding via BullMQ | Responsiveness + retry on rate limits | Eventual consistency (indexing delay) |
 | Chunk overlap ~15% | Preserve context across boundaries | More vectors → slightly higher storage/cost |
 | Citations always returned | Trust + verifiability | Extra metadata plumbing |

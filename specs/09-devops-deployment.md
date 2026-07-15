@@ -4,9 +4,9 @@
 
 | Env | Purpose | Frontend | Backend | Data |
 |-----|---------|----------|---------|------|
-| **local** | dev | Vite dev server | Nest watch + Docker Compose deps | local Mongo/Redis (compose) or Atlas dev + Upstash |
-| **preview** | per-PR | Vercel preview | Railway preview env | Atlas preview db |
-| **production** | live | Vercel | Railway | Atlas + Upstash |
+| **local** | dev | Vite dev server | Nest watch + Docker Compose deps | local Mongo (RS) + Redis + Qdrant (all Docker Compose) |
+| **preview** | per-PR | Vercel preview | Railway preview env | containerized Mongo + Qdrant + Redis (preview stack) |
+| **production** | live | Vercel | Railway | self-hosted Mongo (RS) + Qdrant + Redis containers (Upstash Redis optional) |
 
 Config is loaded from env vars, validated at boot with **Zod** (fail fast if a required var is missing). A committed `.env.example` documents every key; real secrets live only in platform secret managers.
 
@@ -16,8 +16,9 @@ Config is loaded from env vars, validated at boot with **Zod** (fail fast if a r
 
 ```
 services:
-  mongo:     # single-node replica set (needed for transactions)
+  mongo:     # single-node replica set (needed for transactions), with init script
   redis:     # cache + BullMQ
+  qdrant:    # vector DB for RAG (ports 6333 http / 6334 grpc), volume-backed
   mongo-express / redis-insight   # optional dev UIs
 ```
 
@@ -70,8 +71,9 @@ Turborepo remote/local cache speeds repeated builds. Deploys are triggered only 
               │  HTTPS + SSE
               ▼
         Railway: API service   ──┐
-        Railway: Worker service  │──► MongoDB Atlas (+ Search + Vector)
-                                  ├──► Upstash Redis (cache + queue)
+        Railway: Worker service  │──► MongoDB (self-hosted, replica set)
+                                  ├──► Qdrant (self-hosted vector DB)
+                                  ├──► Redis (Docker) / Upstash (cache + queue)
                                   └──► Cloudflare R2 (files)
               │
               ▼
@@ -79,7 +81,7 @@ Turborepo remote/local cache speeds repeated builds. Deploys are triggered only 
 ```
 
 - **Zero-downtime**: rolling deploys + health-gated cutover (`/health/ready` must pass).
-- **Migrations**: schema/index setup via a migration runner executed as a deploy step (idempotent index creation, Atlas Search/Vector index definitions checked in as code).
+- **Migrations**: schema/index setup via a migration runner executed as a deploy step (idempotent Mongo index + text-index creation; Qdrant collection bootstrap — name/vector-size/distance — checked in as code and created on boot if missing).
 - **Rollback**: platform keeps previous build; revert = redeploy previous image.
 
 ## Observability
@@ -96,8 +98,8 @@ Every request carries a `requestId` propagated across logs, errors, audit entrie
 
 ## Cost & scaling posture
 
-- Free/low tiers by default: Gemini free API, Upstash pay-per-request, Atlas free/shared to start.
-- Scale levers documented: API replicas (stateless), worker concurrency, Redis cache TTLs, Atlas tier bump, later a dedicated vector DB.
+- Free/OSS by default: Gemini free API, self-hosted Mongo + Qdrant + Redis (Upstash free tier optional).
+- Scale levers documented: API replicas (stateless), worker concurrency, Redis cache TTLs, Mongo replica-set scaling / managed Atlas swap-in, Qdrant sharding or managed Qdrant Cloud.
 - Rate limiting + caching protect free-tier limits (esp. Gemini).
 
 ## Interview questions this prepares you for

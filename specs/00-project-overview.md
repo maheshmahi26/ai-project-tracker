@@ -28,7 +28,7 @@ User: "Create a High Priority backend authentication task assigned to Mahesh."
 
 ## Target outcome
 
-A portfolio-worthy product that signals a Senior Full-Stack + AI Engineer (targeting 50–60 LPA roles). It must look and behave like a scalable commercial product.
+A portfolio-worthy product that signals a Senior Full-Stack + AI Engineer. It must look and behave like a scalable commercial product.
 
 ## Personas
 

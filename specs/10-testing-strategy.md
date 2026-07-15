@@ -20,7 +20,7 @@ We follow the **testing pyramid**: many fast unit tests, fewer integration tests
 - **Utilities**: pagination cursors, mappers, config validation.
 
 ### Integration tests
-- Boot a real Nest app against **`mongodb-memory-server`** (or a disposable Atlas/Mongo container) + a test Redis.
+- Boot a real Nest app against **`mongodb-memory-server`** (or a disposable Mongo container) + a test Redis; Qdrant is faked/stubbed in unit tests and run as a disposable container for RAG integration tests.
 - Cover: guards + validation + service + repository + DB together.
 - Assert: auth flows (register/login/refresh/rotation-reuse), org scoping/tenant isolation, task CRUD + bulk ops, soft-delete + undo, audit/activity rows written, error envelope shape.
 - **AI agent integration**: mock the Gemini client to return canned function calls; assert the agent runs the tool, mutates data through the real service, and writes an `AIExecution` + audit log. (No real LLM calls in CI.)

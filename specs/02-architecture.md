@@ -40,8 +40,8 @@ Business rules must not depend on frameworks, databases, or the LLM. Dependencie
                                        │
              ┌───────────────┬─────────┼──────────┬───────────────┐
              ▼               ▼         ▼          ▼               ▼
-      MongoDB Atlas    Upstash Redis  R2/S3   Google OAuth   Sentry/OTel/
-      (+Vector Search) (cache/queue) (files)               Better Stack
+      MongoDB (local)  Redis          R2/S3   Google OAuth   Sentry/OTel/
+      + Qdrant (vec)   (cache/queue)  (files)               Better Stack
 ```
 
 ## C4 — Level 2: Containers
@@ -65,7 +65,7 @@ Business rules must not depend on frameworks, databases, or the LLM. Dependencie
                                     │ Mongo repos  Redis/BullMQ  Storage/AI    │
                                     └───┼────────────┼─────────────┼──────────┘
                                         ▼            ▼             ▼
-                                    Atlas        Upstash        R2 / Gemini
+                                 Mongo+Qdrant    Redis          R2 / Gemini
                                                                  Worker (BullMQ)
 ```
 
@@ -149,7 +149,7 @@ tasks/
 9. EventEmitter        → emit task.created
       ├─ ActivityService  → ActivityLog + AuditLog
       ├─ NotificationsSvc → notify assignee (+ enqueue email job)
-      └─ SearchIndexer    → ensure Atlas Search freshness
+      └─ SearchIndexer    → maintain Mongo text index / Qdrant vectors
 10. TransformInterceptor → wrap in success envelope
 11. Response 201 { data: TaskDto }
 ```

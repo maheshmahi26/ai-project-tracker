@@ -25,6 +25,14 @@ Read them in order. Each document is self-contained but builds on the previous o
 | 09 | [DevOps & Deployment](./09-devops-deployment.md) | Docker, CI/CD, environments, observability |
 | 10 | [Testing Strategy](./10-testing-strategy.md) | Unit / integration / E2E, coverage targets |
 | 11 | [Implementation Roadmap](./11-roadmap.md) | The 10 phases broken into concrete, ordered steps |
+| 12 | [Execution Plan (Multi-Agent)](./12-execution-plan.md) | How different Cursor agents build it task-by-task + history rules |
+
+### Build execution (outside this folder)
+
+| Folder | Purpose |
+|--------|---------|
+| [`../tasks/`](../tasks/) | 22 self-contained task cards (`TASK-01` … `TASK-22`), one per agent work package |
+| [`../history/`](../history/) | Durable build log — each finished task leaves a `TASK-XX.md` entry + a `CHANGELOG.md` row |
 
 ---
 
@@ -46,4 +54,6 @@ Read them in order. Each document is self-contained but builds on the previous o
 
 ## Status
 
-These are **planning specs only**. No application code has been written yet. Implementation follows [the roadmap](./11-roadmap.md), phase by phase, after these specs are approved.
+These are **planning specs only**. No application code has been written yet. Implementation follows [the roadmap](./11-roadmap.md) and is executed as discrete [task cards](../tasks/) handed to individual agents — **human layer first (TASK-01→15), AI layer last (TASK-16→22)** — with every finished task recorded in [`../history/`](../history/).
+
+**Data stack:** self-hosted/local **MongoDB** (single-node replica set for transactions) + **Qdrant** (free, OSS vector DB for RAG) + **Redis**. No MongoDB Atlas dependency; full-text search uses MongoDB text indexes.

@@ -50,7 +50,7 @@ Error (from `AllExceptionsFilter`):
 - **Offset pagination** available for tables that need page numbers: `?page=2&pageSize=25`.
 - **Filtering:** typed query params, e.g. `?status=todo,in_progress&priority=high&assigneeId=...&sprintId=...`.
 - **Sorting:** `?sort=-priority,dueDate` (`-` = desc). Whitelisted fields only.
-- **Search:** `?q=` triggers Atlas Search (full-text) on the resource.
+- **Search:** `?q=` triggers MongoDB text-index full-text search on the resource.
 
 ## Auth headers
 
@@ -160,8 +160,8 @@ GET    /reports/weekly?projectId=
 
 ### Search
 ```
-GET    /search?q=&scope=all|tasks|projects   # Atlas Search
-POST   /search/semantic { query, projectId? } # Vector Search (RAG)
+GET    /search?q=&scope=all|tasks|projects   # MongoDB text-index search
+POST   /search/semantic { query, projectId? } # Qdrant vector search (RAG)
 ```
 
 ### AI & Chat
