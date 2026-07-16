@@ -4,8 +4,9 @@ Each completed task adds a row at the **top**. Keep it one line; details go in `
 
 | Date | Task | Title | Status | Agent / chat | Entry |
 |------|------|-------|--------|--------------|-------|
-| 2026-07-15 | TASK-02 | Local infra (Mongo RS + Redis + Qdrant + MinIO) & config | ✅ done (boot pending install) | initial setup chat | [TASK-02.md](./TASK-02.md) |
-| 2026-07-15 | TASK-01 | Monorepo & tooling foundation | ✅ done (install pending) | initial setup chat | [TASK-01.md](./TASK-01.md) |
+| 2026-07-15 | TASK-03 | Backend skeleton & cross-cutting concerns | ✅ done (verified live) | backend skeleton chat | [TASK-03.md](./TASK-03.md) |
+| 2026-07-15 | TASK-02 | Local infra (Mongo RS + Redis + Qdrant + MinIO) & config | ✅ done (containers healthy) | initial setup chat | [TASK-02.md](./TASK-02.md) |
+| 2026-07-15 | TASK-01 | Monorepo & tooling foundation | ✅ done (installed & building) | initial setup chat | [TASK-01.md](./TASK-01.md) |
 
 <!--
 Example row once TASK-01 is done:

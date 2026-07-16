@@ -5,7 +5,7 @@
   "description": "AI ProjectOS — AI-native project management SaaS (monorepo)",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=20",
+    "node": ">=20.19",
     "pnpm": ">=9"
   },
   "scripts": {
