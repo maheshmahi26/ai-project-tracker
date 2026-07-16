@@ -307,6 +307,193 @@ export interface ProjectDTO {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Sprints
+// ───────────────────────────────────────────────────────────────────────────
+
+export const SPRINT_STATUSES = ['planned', 'active', 'completed'] as const;
+export const sprintStatusSchema = z.enum(SPRINT_STATUSES);
+export type SprintStatus = z.infer<typeof sprintStatusSchema>;
+
+export const createSprintSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  goal: z.string().trim().max(2000).optional(),
+  startDate: isoDateSchema.optional(),
+  endDate: isoDateSchema.optional(),
+  capacityPoints: z.number().int().min(0).max(10000).optional(),
+});
+export type CreateSprintInput = z.infer<typeof createSprintSchema>;
+
+export const updateSprintSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120),
+    goal: z.string().trim().max(2000).nullable(),
+    startDate: isoDateSchema.nullable(),
+    endDate: isoDateSchema.nullable(),
+    capacityPoints: z.number().int().min(0).max(10000).nullable(),
+  })
+  .partial();
+export type UpdateSprintInput = z.infer<typeof updateSprintSchema>;
+
+export const listSprintsQuerySchema = z.object({
+  status: z.enum(['planned', 'active', 'completed', 'all']).default('all'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().optional(),
+});
+export type ListSprintsQuery = z.infer<typeof listSprintsQuerySchema>;
+
+export interface SprintDTO {
+  id: string;
+  orgId: string;
+  projectId: string;
+  name: string;
+  goal?: string | null;
+  status: SprintStatus;
+  startDate?: string | null;
+  endDate?: string | null;
+  capacityPoints?: number | null;
+  committedPoints: number;
+  completedPoints: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Tasks
+// ───────────────────────────────────────────────────────────────────────────
+
+export const TASK_STATUSES = ['backlog', 'todo', 'in_progress', 'in_review', 'done'] as const;
+export const taskStatusSchema = z.enum(TASK_STATUSES);
+export type TaskStatus = z.infer<typeof taskStatusSchema>;
+
+export const TASK_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
+export const taskPrioritySchema = z.enum(TASK_PRIORITIES);
+export type TaskPriority = z.infer<typeof taskPrioritySchema>;
+
+const storyPointsSchema = z.number().int().min(0).max(100);
+
+export const createTaskSchema = z.object({
+  projectId: objectIdSchema,
+  title: z.string().trim().min(1).max(300),
+  description: z.string().trim().max(20000).optional(),
+  status: taskStatusSchema.optional(),
+  priority: taskPrioritySchema.optional(),
+  assigneeId: objectIdSchema.optional(),
+  sprintId: objectIdSchema.optional(),
+  parentId: objectIdSchema.optional(),
+  labelIds: z.array(objectIdSchema).max(50).optional(),
+  storyPoints: storyPointsSchema.optional(),
+  dueDate: isoDateSchema.optional(),
+});
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+
+/** Body for `POST /tasks/:id/subtasks` — project + parent come from the path. */
+export const createSubtaskSchema = createTaskSchema.omit({ projectId: true, parentId: true });
+export type CreateSubtaskInput = z.infer<typeof createSubtaskSchema>;
+
+export const updateTaskSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300),
+    description: z.string().trim().max(20000).nullable(),
+    status: taskStatusSchema,
+    priority: taskPrioritySchema,
+    assigneeId: objectIdSchema.nullable(),
+    sprintId: objectIdSchema.nullable(),
+    labelIds: z.array(objectIdSchema).max(50),
+    storyPoints: storyPointsSchema.nullable(),
+    dueDate: isoDateSchema.nullable(),
+  })
+  .partial();
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+
+export const assignTaskSchema = z.object({ assigneeId: objectIdSchema.nullable() });
+export type AssignTaskInput = z.infer<typeof assignTaskSchema>;
+
+export const moveTaskSchema = z
+  .object({
+    sprintId: objectIdSchema.nullable().optional(),
+    status: taskStatusSchema.optional(),
+    order: z.number().finite().optional(),
+  })
+  .refine((v) => v.sprintId !== undefined || v.status !== undefined || v.order !== undefined, {
+    message: 'Provide at least one of sprintId, status, or order',
+  });
+export type MoveTaskInput = z.infer<typeof moveTaskSchema>;
+
+/** Patch applied to every id in a bulk-update. */
+export const bulkTaskPatchSchema = z
+  .object({
+    status: taskStatusSchema,
+    priority: taskPrioritySchema,
+    assigneeId: objectIdSchema.nullable(),
+    sprintId: objectIdSchema.nullable(),
+    labelIds: z.array(objectIdSchema).max(50),
+    storyPoints: storyPointsSchema.nullable(),
+    dueDate: isoDateSchema.nullable(),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Patch must not be empty' });
+
+export const bulkUpdateTasksSchema = z.object({
+  ids: z.array(objectIdSchema).min(1).max(100),
+  patch: bulkTaskPatchSchema,
+});
+export type BulkUpdateTasksInput = z.infer<typeof bulkUpdateTasksSchema>;
+
+export const bulkDeleteTasksSchema = z.object({
+  ids: z.array(objectIdSchema).min(1).max(100),
+});
+export type BulkDeleteTasksInput = z.infer<typeof bulkDeleteTasksSchema>;
+
+export const TASK_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'order',
+  'priority',
+  'status',
+  'dueDate',
+  'storyPoints',
+] as const;
+
+export const listTasksQuerySchema = z.object({
+  projectId: objectIdSchema.optional(),
+  sprintId: objectIdSchema.optional(),
+  /** Comma-separated list, e.g. `todo,in_progress`. */
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  assigneeId: objectIdSchema.optional(),
+  /** `parentId=<id>` for subtasks of a task; `parentId=none` for top-level only. */
+  parentId: z.string().optional(),
+  q: z.string().trim().max(200).optional(),
+  sort: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+});
+export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
+
+export interface TaskDTO {
+  id: string;
+  orgId: string;
+  projectId: string;
+  sprintId?: string | null;
+  key: string;
+  parentId?: string | null;
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assigneeId?: string | null;
+  reporterId: string;
+  labelIds: string[];
+  storyPoints?: number | null;
+  dueDate?: string | null;
+  order: number;
+  attachmentsCount: number;
+  commentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // Activity & Audit (read models)
 // ───────────────────────────────────────────────────────────────────────────
 

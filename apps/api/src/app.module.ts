@@ -22,6 +22,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { SprintsModule } from './modules/sprints/sprints.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -51,6 +53,8 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     OrganizationsModule,
     ProjectsModule,
+    SprintsModule,
+    TasksModule,
     TimelineModule,
   ],
   controllers: [AppController],

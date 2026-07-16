@@ -23,6 +23,12 @@ import { AuditActivityListener } from '../modules/events/audit-activity.listener
 import { ProjectsService } from '../modules/projects/projects.service';
 import { MongoProjectsRepository, ProjectsRepository } from '../modules/projects/projects.repository';
 import { Project, ProjectSchema } from '../modules/projects/schemas/project.schema';
+import { SprintsService } from '../modules/sprints/sprints.service';
+import { MongoSprintsRepository, SprintsRepository } from '../modules/sprints/sprints.repository';
+import { Sprint, SprintSchema } from '../modules/sprints/schemas/sprint.schema';
+import { TasksService } from '../modules/tasks/tasks.service';
+import { MongoTasksRepository, TasksRepository } from '../modules/tasks/tasks.repository';
+import { Task, TaskSchema } from '../modules/tasks/schemas/task.schema';
 import { AuthService } from '../modules/auth/auth.service';
 import { PasswordService } from '../modules/auth/password.service';
 import { TokenService } from '../modules/auth/token.service';
@@ -70,6 +76,8 @@ export interface TestContext {
   auth: AuthService;
   orgs: OrganizationsService;
   projects: ProjectsService;
+  sprints: SprintsService;
+  tasks: TasksService;
   activity: ActivityService;
   audit: AuditService;
   mail: MailSpy;
@@ -101,6 +109,8 @@ export async function createTestContext(): Promise<TestContext | null> {
           { name: AuditLog.name, schema: AuditLogSchema },
           { name: ActivityLog.name, schema: ActivityLogSchema },
           { name: Project.name, schema: ProjectSchema },
+          { name: Sprint.name, schema: SprintSchema },
+          { name: Task.name, schema: TaskSchema },
         ]),
       ],
       providers: [
@@ -112,6 +122,8 @@ export async function createTestContext(): Promise<TestContext | null> {
         AuditService,
         ActivityService,
         ProjectsService,
+        SprintsService,
+        TasksService,
         DomainEventBus,
         AuditActivityListener,
         { provide: AppConfigService, useValue: fakeConfig },
@@ -129,6 +141,8 @@ export async function createTestContext(): Promise<TestContext | null> {
         { provide: AuditLogRepository, useClass: MongoAuditLogRepository },
         { provide: ActivityLogRepository, useClass: MongoActivityLogRepository },
         { provide: ProjectsRepository, useClass: MongoProjectsRepository },
+        { provide: SprintsRepository, useClass: MongoSprintsRepository },
+        { provide: TasksRepository, useClass: MongoTasksRepository },
       ],
     }).compile();
     await module.init();
@@ -145,6 +159,8 @@ export async function createTestContext(): Promise<TestContext | null> {
     auth: module.get(AuthService),
     orgs: module.get(OrganizationsService),
     projects: module.get(ProjectsService),
+    sprints: module.get(SprintsService),
+    tasks: module.get(TasksService),
     activity: module.get(ActivityService),
     audit: module.get(AuditService),
     mail,

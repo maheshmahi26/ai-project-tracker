@@ -15,7 +15,18 @@ export type DomainEventName =
   | 'project.archived'
   | 'project.restored'
   | 'project.deleted'
-  | 'project.undeleted';
+  | 'project.undeleted'
+  | 'sprint.created'
+  | 'sprint.updated'
+  | 'sprint.started'
+  | 'sprint.completed'
+  | 'sprint.deleted'
+  | 'task.created'
+  | 'task.updated'
+  | 'task.moved'
+  | 'task.assigned'
+  | 'task.deleted'
+  | 'task.undeleted';
 
 export interface DomainEvent {
   /** Machine name, also used as the AuditLog `action`. */
