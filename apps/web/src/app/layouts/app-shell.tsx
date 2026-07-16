@@ -29,6 +29,19 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
 import { PageSkeleton } from '@/components/skeletons/page-skeleton';
 import { useUiStore } from '@/stores/ui-store';
+import { useAuthStore } from '@/stores/auth-store';
+import { useLogout } from '@/features/auth/hooks/use-auth';
+import { OrgSwitcher } from '@/features/organizations/components/org-switcher';
+
+function initials(name: string | undefined): string {
+  if (!name) return 'U';
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
 
 interface NavItem {
   to: string;
@@ -59,6 +72,10 @@ function Sidebar(): React.JSX.Element {
           <Sparkles className="size-4" />
         </div>
         {!collapsed && <span className="truncate font-semibold">AI ProjectOS</span>}
+      </div>
+
+      <div className="border-b p-2">
+        <OrgSwitcher collapsed={collapsed} />
       </div>
 
       <nav className="flex-1 space-y-1 p-2">
@@ -101,6 +118,14 @@ function TopBar(): React.JSX.Element {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const setCommandOpen = useUiStore((s) => s.setCommandOpen);
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const logout = useLogout();
+
+  const handleSignOut = (): void => {
+    logout.mutate(undefined, {
+      onSettled: () => navigate('/login', { replace: true }),
+    });
+  };
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -130,18 +155,25 @@ function TopBar(): React.JSX.Element {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Account menu">
               <Avatar>
-                <AvatarFallback>AP</AvatarFallback>
+                <AvatarFallback>{initials(user?.name)}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>My account</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="flex flex-col">
+              <span className="truncate font-medium">{user?.name ?? 'My account'}</span>
+              {user?.email && (
+                <span className="truncate text-xs font-normal text-muted-foreground">
+                  {user.email}
+                </span>
+              )}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => navigate('/settings')}>
               <User />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => navigate('/login')}>
+            <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut />
               Sign out
             </DropdownMenuItem>

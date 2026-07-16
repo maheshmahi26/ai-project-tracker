@@ -2,6 +2,7 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useThemeStore, type ThemeMode } from '@/stores/theme-store';
+import { MembersSection } from '@/features/organizations/components/members-section';
 
 const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string; icon: typeof Sun }> = [
   { mode: 'light', label: 'Light', icon: Sun },
@@ -18,7 +19,7 @@ export default function SettingsPage(): React.JSX.Element {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Account, organization, and members settings arrive with auth (TASK-06).
+          Manage your workspace appearance and members.
         </p>
       </div>
 
@@ -46,6 +47,8 @@ export default function SettingsPage(): React.JSX.Element {
           </div>
         </CardContent>
       </Card>
+
+      <MembersSection />
     </div>
   );
 }

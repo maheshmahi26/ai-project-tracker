@@ -7,6 +7,15 @@ export const queryKeys = {
   health: {
     ping: ['health', 'ping'] as const,
   },
+  auth: {
+    me: ['auth', 'me'] as const,
+  },
+  orgs: {
+    all: ['orgs'] as const,
+    list: ['orgs', 'list'] as const,
+    detail: (id: string) => ['orgs', 'detail', id] as const,
+    members: (id: string) => ['orgs', id, 'members'] as const,
+  },
   projects: {
     all: ['projects'] as const,
     list: (filters?: Record<string, unknown>) => ['projects', 'list', filters ?? {}] as const,
