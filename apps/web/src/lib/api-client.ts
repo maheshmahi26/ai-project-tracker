@@ -141,9 +141,29 @@ async function requestWithMeta<T>(
   return { data: envelope.data, meta: envelope.meta };
 }
 
+/** Raw GET returning a Blob (e.g. CSV export). Skips envelope unwrapping. */
+async function getBlob(path: string, opts?: RequestOptions): Promise<Blob> {
+  const headers: Record<string, string> = { ...opts?.headers };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const orgId = getOrgId();
+  if (orgId && !('x-org-id' in headers)) headers['x-org-id'] = orgId;
+
+  const res = await fetch(buildUrl(path, opts?.params), {
+    method: 'GET',
+    headers,
+    signal: opts?.signal,
+    credentials: 'include',
+  });
+
+  if (!res.ok) throw toClientError(res.status, await parseBody(res));
+  return res.blob();
+}
+
 export const apiClient = {
   get: <T>(path: string, opts?: RequestOptions): Promise<T> =>
     request<T>(path, { ...opts, method: 'GET' }),
+  getBlob,
   getWithMeta: <T>(path: string, opts?: RequestOptions): Promise<{ data: T; meta: ApiMeta }> =>
     requestWithMeta<T>(path, { ...opts, method: 'GET' }),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions): Promise<T> =>

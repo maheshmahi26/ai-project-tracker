@@ -54,4 +54,14 @@ export const queryKeys = {
       ['notifications', 'list', orgId, filters ?? {}] as const,
     unreadCount: (orgId: string | null) => ['notifications', 'unread-count', orgId] as const,
   },
+  sprints: {
+    all: ['sprints'] as const,
+    list: (orgId: string | null, projectId: string) =>
+      ['sprints', 'list', orgId, projectId] as const,
+  },
+  dashboard: {
+    all: ['dashboard'] as const,
+    widget: (orgId: string | null, widget: string, filters?: Record<string, unknown>) =>
+      ['dashboard', widget, orgId, filters ?? {}] as const,
+  },
 } as const;

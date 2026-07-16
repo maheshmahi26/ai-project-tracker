@@ -1,136 +1,110 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Activity, CheckCircle2, Clock, FolderKanban, Wifi, WifiOff } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
-import { queryKeys } from '@/lib/query-keys';
-import { Badge } from '@/components/ui/badge';
+import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ChartFrame } from '@/components/charts/chart-frame';
-import { EmptyState } from '@/components/empty-states/empty-state';
-import { ErrorBoundary } from '@/components/error-boundary/error-boundary';
+import { ActivityFeed } from '@/features/activity/components/activity-feed';
+import { useProjects } from '@/features/projects/hooks/use-projects';
+import { useCan } from '@/hooks/use-can';
+import {
+  BurndownWidget,
+  CompletionWidget,
+  OverviewStats,
+  PriorityWidget,
+  ProjectProgressWidget,
+  TasksPerUserWidget,
+  VelocityWidget,
+} from '../components/dashboard-widgets';
+import { WeeklyReport } from '../components/weekly-report';
+import { useExportTasks } from '../hooks/use-dashboard';
 
-interface Ping {
-  name: string;
-  env: string;
-  message: string;
-}
-
-const STATS = [
-  { label: 'Active projects', value: '—', icon: FolderKanban },
-  { label: 'Open tasks', value: '—', icon: Clock },
-  { label: 'Completed', value: '—', icon: CheckCircle2 },
-  { label: 'Activity today', value: '—', icon: Activity },
-];
-
-/** Live demo: fetch GET /api/v1/ping through the typed apiClient (envelope unwrapped). */
-function ApiStatusCard(): React.JSX.Element {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: queryKeys.health.ping,
-    queryFn: () => apiClient.get<Ping>('/ping'),
-  });
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-sm font-medium">API connectivity</CardTitle>
-        {isError ? (
-          <Badge variant="destructive" className="gap-1">
-            <WifiOff className="size-3" /> Offline
-          </Badge>
-        ) : (
-          !isLoading && (
-            <Badge className="gap-1">
-              <Wifi className="size-3" /> Connected
-            </Badge>
-          )
-        )}
-      </CardHeader>
-      <CardContent>
-        {isLoading && <Skeleton className="h-5 w-40" />}
-        {isError && (
-          <p className="text-sm text-muted-foreground">
-            Backend not reachable. Start it with <code>pnpm --filter @ai-projectos/api dev</code>.
-          </p>
-        )}
-        {data && (
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{data.name}</span> replied{' '}
-            <span className="font-mono">{data.message}</span> in{' '}
-            <span className="font-mono">{data.env}</span>.
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function BrokenWidget(): React.JSX.Element {
-  throw new Error('This widget crashed on purpose — the error boundary caught it.');
-}
-
-/** Demonstrates a widget-level error boundary isolating a crash. */
-function ErrorBoundaryDemo(): React.JSX.Element {
-  const [crash, setCrash] = useState(false);
-  return (
-    <ErrorBoundary>
-      {crash ? (
-        <BrokenWidget />
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Resilience demo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Crash this widget to see the error boundary contain the failure without
-              taking down the page.
-            </p>
-            <Button variant="outline" size="sm" onClick={() => setCrash(true)}>
-              Crash this widget
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-    </ErrorBoundary>
-  );
-}
+const selectClass =
+  'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
 export default function DashboardPage(): React.JSX.Element {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const projectParam = searchParams.get('project') ?? '';
+
+  const canExport = useCan('export');
+  const exportTasks = useExportTasks();
+
+  const { data: projectsPage } = useProjects({ status: 'active', page: 1, pageSize: 100 });
+  const projects = useMemo(() => projectsPage?.items ?? [], [projectsPage]);
+
+  // Empty string = all projects (org-wide). Only pass a real id downstream.
+  const scope = { projectId: projectParam || undefined };
+
+  const setProject = (value: string): void =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set('project', value);
+        else next.delete('project');
+        return next;
+      },
+      { replace: true },
+    );
+
   return (
     <div className="space-y-6 p-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Welcome back. Real metrics arrive with the dashboard feature (TASK-13).
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Delivery analytics{projectParam ? ' for the selected project.' : ' across your organization.'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <select
+            className={selectClass}
+            value={projectParam}
+            onChange={(e) => setProject(e.target.value)}
+            aria-label="Filter by project"
+          >
+            <option value="">All projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+
+          {canExport && (
+            <Button
+              variant="outline"
+              onClick={() => exportTasks.mutate(scope)}
+              disabled={exportTasks.isPending}
+            >
+              {exportTasks.isPending ? <Loader2 className="animate-spin" /> : <Download />}
+              Export CSV
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STATS.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.label}
-              </CardTitle>
-              <stat.icon className="size-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+      <OverviewStats projectId={scope.projectId} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CompletionWidget projectId={scope.projectId} />
+        <PriorityWidget projectId={scope.projectId} />
+        <VelocityWidget projectId={scope.projectId} />
+        <BurndownWidget projectId={scope.projectId} />
+        <TasksPerUserWidget projectId={scope.projectId} />
+        <ProjectProgressWidget />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ApiStatusCard />
-        <ErrorBoundaryDemo />
+        <WeeklyReport projectId={scope.projectId} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityFeed {...(scope.projectId ? { projectId: scope.projectId } : {})} />
+          </CardContent>
+        </Card>
       </div>
-
-      <ChartFrame title="Velocity (last 6 sprints)">
-        <EmptyState title="No chart data yet" description="Charts are wired up in TASK-13." />
-      </ChartFrame>
     </div>
   );
 }

@@ -4,6 +4,7 @@ Each completed task adds a row at the **top**. Keep it one line; details go in `
 
 | Date | Task | Title | Status | Agent / chat | Entry |
 |------|------|-------|--------|--------------|-------|
+| 2026-07-16 | TASK-13 | Dashboard & reports frontend (6 lazy Recharts widgets, project filter via URL, weekly report, RBAC-gated CSV export) | ✅ done (typecheck/lint/45 web tests + build) | dashboard frontend chat | [TASK-13.md](./TASK-13.md) |
 | 2026-07-16 | TASK-12 | Dashboard & reports backend (aggregation read-models, versioned Redis cache + event-driven invalidation, CSV export) | ✅ done (109 API tests + build) | dashboard backend chat | [TASK-12.md](./TASK-12.md) |
 | 2026-07-16 | TASK-11 | Tasks frontend (Kanban DnD board, table + infinite scroll/bulk, task detail: TipTap/comments/subtasks/files, notification center) | ✅ done (typecheck/lint/37 web tests + build) | tasks frontend chat | [TASK-11.md](./TASK-11.md) |
 | 2026-07-16 | TASK-10 | Comments, Labels, Files (R2/MinIO), Notifications + email jobs | ✅ done (97 tests + live MinIO round-trip) | comments/labels/files/notifications backend chat | [TASK-10.md](./TASK-10.md) |
