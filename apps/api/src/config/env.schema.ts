@@ -16,6 +16,9 @@ export const envSchema = z.object({
   // Redis (cache + BullMQ)
   REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
 
+  // Dashboard read-model cache: short TTL + explicit invalidation on writes
+  DASHBOARD_CACHE_TTL_SEC: z.coerce.number().int().positive().default(30),
+
   // Qdrant (vector DB for RAG)
   QDRANT_URL: z.string().url().default('http://localhost:6333'),
   QDRANT_API_KEY: z.string().optional(),

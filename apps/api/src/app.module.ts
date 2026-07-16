@@ -30,6 +30,7 @@ import { FilesModule } from './modules/files/files.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MailModule } from './modules/mail/mail.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -66,6 +67,7 @@ import { UsersModule } from './modules/users/users.module';
     LabelsModule,
     FilesModule,
     TimelineModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

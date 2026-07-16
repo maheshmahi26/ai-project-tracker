@@ -716,3 +716,104 @@ export interface AuditLogDTO {
   source: 'ui' | 'ai' | 'system';
   createdAt: string;
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Dashboard & Reports (CQRS-lite read models — chart-ready, cached)
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Optional project scoping for org-wide dashboard queries. */
+export const dashboardScopeQuerySchema = z.object({
+  projectId: objectIdSchema.optional(),
+});
+export type DashboardScopeQuery = z.infer<typeof dashboardScopeQuerySchema>;
+
+export const burndownQuerySchema = z.object({
+  sprintId: objectIdSchema,
+});
+export type BurndownQuery = z.infer<typeof burndownQuerySchema>;
+
+export const weeklyReportQuerySchema = z.object({
+  projectId: objectIdSchema.optional(),
+  /** ISO date; the report covers the 7 days ending at `weekOf` (default: now). */
+  weekOf: isoDateSchema.optional(),
+});
+export type WeeklyReportQuery = z.infer<typeof weeklyReportQuerySchema>;
+
+export const exportTasksQuerySchema = z.object({
+  projectId: objectIdSchema.optional(),
+  sprintId: objectIdSchema.optional(),
+  status: z.string().optional(),
+});
+export type ExportTasksQuery = z.infer<typeof exportTasksQuerySchema>;
+
+export interface DashboardOverviewDTO {
+  projects: { total: number; active: number; archived: number };
+  tasks: {
+    total: number;
+    open: number;
+    done: number;
+    overdue: number;
+    byStatus: Record<TaskStatus, number>;
+  };
+  sprints: { total: number; planned: number; active: number; completed: number };
+  points: { committed: number; completed: number };
+}
+
+export interface VelocityPointDTO {
+  sprintId: string;
+  name: string;
+  status: SprintStatus;
+  committedPoints: number;
+  completedPoints: number;
+  endDate?: string | null;
+}
+
+export interface BurndownPointDTO {
+  date: string;
+  ideal: number;
+  remaining: number;
+}
+
+export interface BurndownDTO {
+  sprintId: string;
+  name: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  totalPoints: number;
+  points: BurndownPointDTO[];
+}
+
+export interface TasksPerUserDTO {
+  assigneeId: string | null;
+  total: number;
+  open: number;
+  done: number;
+  points: number;
+}
+
+export interface PriorityDistributionDTO {
+  priority: TaskPriority;
+  count: number;
+}
+
+export interface ProjectProgressDTO {
+  projectId: string;
+  key: string;
+  name: string;
+  total: number;
+  done: number;
+  open: number;
+  percentComplete: number;
+  points: number;
+  donePoints: number;
+}
+
+export interface WeeklyReportDTO {
+  rangeStart: string;
+  rangeEnd: string;
+  createdCount: number;
+  completedCount: number;
+  createdByPriority: Record<TaskPriority, number>;
+  activeSprints: number;
+  topContributors: Array<{ assigneeId: string; done: number }>;
+}

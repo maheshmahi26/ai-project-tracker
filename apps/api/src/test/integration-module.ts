@@ -49,6 +49,9 @@ import {
   NotificationSchema,
 } from '../modules/notifications/schemas/notification.schema';
 import { NotificationsListener } from '../modules/notifications/notifications.listener';
+import { DashboardService } from '../modules/dashboard/dashboard.service';
+import { DashboardRepository } from '../modules/dashboard/dashboard.repository';
+import { DashboardCache } from '../modules/dashboard/dashboard.cache';
 import { AuthService } from '../modules/auth/auth.service';
 import { PasswordService } from '../modules/auth/password.service';
 import { TokenService } from '../modules/auth/token.service';
@@ -110,6 +113,7 @@ export interface TestContext {
   labels: LabelsService;
   files: FilesService;
   notifications: NotificationsService;
+  dashboard: DashboardService;
   activity: ActivityService;
   audit: AuditService;
   mail: MailSpy;
@@ -181,6 +185,16 @@ export async function createTestContext(): Promise<TestContext | null> {
         FilesService,
         NotificationsService,
         NotificationsListener,
+        DashboardService,
+        DashboardRepository,
+        // No-op cache in tests: always computes fresh so assertions are deterministic.
+        {
+          provide: DashboardCache,
+          useValue: {
+            wrap: <T>(_o: string, _n: string, _p: unknown, fn: () => Promise<T>) => fn(),
+            invalidateOrg: async () => {},
+          } as unknown as DashboardCache,
+        },
         DomainEventBus,
         AuditActivityListener,
         { provide: AppConfigService, useValue: fakeConfig },
@@ -230,6 +244,7 @@ export async function createTestContext(): Promise<TestContext | null> {
     labels: module.get(LabelsService),
     files: module.get(FilesService),
     notifications: module.get(NotificationsService),
+    dashboard: module.get(DashboardService),
     activity: module.get(ActivityService),
     audit: module.get(AuditService),
     mail,
