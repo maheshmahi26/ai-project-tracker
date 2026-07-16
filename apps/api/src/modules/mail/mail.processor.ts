@@ -2,11 +2,12 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { AppConfigService } from '../../config/config.module';
-import { EMAIL_QUEUE, type PasswordResetEmailJob } from './mail.service';
+import { EMAIL_QUEUE, type EmailJob } from './mail.service';
 
 /**
  * Consumes the `email` queue. In dev (MAIL_TRANSPORT=console) it prints the email
  * to the log; SMTP delivery is wired here when MAIL_TRANSPORT=smtp (later task).
+ * BullMQ handles retries/backoff (configured by the producer).
  */
 @Processor(EMAIL_QUEUE)
 export class MailProcessor extends WorkerHost {
@@ -16,11 +17,20 @@ export class MailProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<PasswordResetEmailJob>): Promise<void> {
-    const { to, resetLink } = job.data;
+  async process(job: Job<EmailJob>): Promise<void> {
+    const { to } = job.data;
+    const subject =
+      job.data.type === 'password_reset'
+        ? 'Reset your password'
+        : job.data.subject;
+    const text =
+      job.data.type === 'password_reset'
+        ? `Reset your password: ${job.data.resetLink}`
+        : job.data.text;
+
     if (this.config.get('MAIL_TRANSPORT') === 'console') {
       this.logger.log(
-        `[console mail] To: ${to} — Reset your password: ${resetLink} (from ${this.config.get('MAIL_FROM')})`,
+        `[console mail] To: ${to} — ${subject} — ${text} (from ${this.config.get('MAIL_FROM')})`,
       );
       return;
     }

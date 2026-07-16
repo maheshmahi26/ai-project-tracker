@@ -26,7 +26,15 @@ export type DomainEventName =
   | 'task.moved'
   | 'task.assigned'
   | 'task.deleted'
-  | 'task.undeleted';
+  | 'task.undeleted'
+  | 'comment.created'
+  | 'comment.updated'
+  | 'comment.deleted'
+  | 'label.created'
+  | 'label.updated'
+  | 'label.deleted'
+  | 'file.uploaded'
+  | 'file.deleted';
 
 export interface DomainEvent {
   /** Machine name, also used as the AuditLog `action`. */

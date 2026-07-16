@@ -11,6 +11,15 @@ export interface PasswordResetEmailJob {
   resetLink: string;
 }
 
+export interface NotificationEmailJob {
+  type: 'notification';
+  to: string;
+  subject: string;
+  text: string;
+}
+
+export type EmailJob = PasswordResetEmailJob | NotificationEmailJob;
+
 /**
  * Enqueues transactional emails onto the BullMQ `email` queue; the worker process
  * actually "sends" them (console transport in dev). Kept behind this interface so
@@ -33,5 +42,15 @@ export class MailService {
       { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, removeOnComplete: true },
     );
     this.logger.debug(`Queued password-reset email for ${to}`);
+  }
+
+  /** Enqueues a transactional notification email (mention/assignment digest). */
+  async sendNotification(to: string, subject: string, text: string): Promise<void> {
+    await this.queue.add(
+      'notification',
+      { type: 'notification', to, subject, text } satisfies NotificationEmailJob,
+      { attempts: 5, backoff: { type: 'exponential', delay: 3000 }, removeOnComplete: true },
+    );
+    this.logger.debug(`Queued notification email for ${to}`);
   }
 }

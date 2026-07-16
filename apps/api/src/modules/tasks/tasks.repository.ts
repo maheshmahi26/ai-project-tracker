@@ -48,6 +48,7 @@ export abstract class TasksRepository {
   abstract softDelete(orgId: string, id: string, session?: ClientSession): Promise<boolean>;
   abstract restoreDeleted(orgId: string, id: string): Promise<boolean>;
   abstract detachSprint(orgId: string, sprintId: string, session?: ClientSession): Promise<void>;
+  abstract pullLabel(orgId: string, labelId: string): Promise<void>;
   abstract listCursor(params: TaskListParams): Promise<TaskLean[]>;
   abstract maxOrder(orgId: string, projectId: string, status: string): Promise<number>;
   abstract sumPointsBySprint(
@@ -142,6 +143,16 @@ export class MongoTasksRepository extends TasksRepository {
         { orgId: new Types.ObjectId(orgId), sprintId: new Types.ObjectId(sprintId) },
         { $set: { sprintId: null } },
         { session },
+      )
+      .exec();
+  }
+
+  async pullLabel(orgId: string, labelId: string): Promise<void> {
+    if (!Types.ObjectId.isValid(orgId) || !Types.ObjectId.isValid(labelId)) return;
+    await this.model
+      .updateMany(
+        { orgId: new Types.ObjectId(orgId), labelIds: new Types.ObjectId(labelId) },
+        { $pull: { labelIds: new Types.ObjectId(labelId) } },
       )
       .exec();
   }

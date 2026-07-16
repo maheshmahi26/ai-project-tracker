@@ -139,7 +139,7 @@ The [`../history/`](../history/) folder is the durable memory of the build.
 | TASK-07 | Projects backend | Human | ✅ done (2026-07-16, 54 tests + live smoke) |
 | TASK-08 | Projects frontend | Human | ✅ done (2026-07-16, typecheck/lint/24 tests) |
 | TASK-09 | Sprints + Tasks backend | Human | ✅ done (2026-07-16, 74 tests + live smoke) |
-| TASK-10 | Comments/Labels/Files/Notifications | Human | ☐ |
+| TASK-10 | Comments/Labels/Files/Notifications | Human | ✅ done (2026-07-16, 97 tests + live MinIO round-trip) |
 | TASK-11 | Tasks frontend | Human | ☐ |
 | TASK-12 | Dashboard backend | Human | ☐ |
 | TASK-13 | Dashboard frontend | Human | ☐ |

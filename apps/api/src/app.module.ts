@@ -24,6 +24,11 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { ProjectsModule } from './modules/projects/projects.module';
 import { SprintsModule } from './modules/sprints/sprints.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { CommentsModule } from './modules/comments/comments.module';
+import { LabelsModule } from './modules/labels/labels.module';
+import { FilesModule } from './modules/files/files.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { MailModule } from './modules/mail/mail.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -55,6 +60,11 @@ import { UsersModule } from './modules/users/users.module';
     ProjectsModule,
     SprintsModule,
     TasksModule,
+    MailModule,
+    NotificationsModule,
+    CommentsModule,
+    LabelsModule,
+    FilesModule,
     TimelineModule,
   ],
   controllers: [AppController],

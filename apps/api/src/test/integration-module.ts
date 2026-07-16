@@ -29,6 +29,26 @@ import { Sprint, SprintSchema } from '../modules/sprints/schemas/sprint.schema';
 import { TasksService } from '../modules/tasks/tasks.service';
 import { MongoTasksRepository, TasksRepository } from '../modules/tasks/tasks.repository';
 import { Task, TaskSchema } from '../modules/tasks/schemas/task.schema';
+import { CommentsService } from '../modules/comments/comments.service';
+import { CommentsRepository, MongoCommentsRepository } from '../modules/comments/comments.repository';
+import { Comment, CommentSchema } from '../modules/comments/schemas/comment.schema';
+import { LabelsService } from '../modules/labels/labels.service';
+import { LabelsRepository, MongoLabelsRepository } from '../modules/labels/labels.repository';
+import { Label, LabelSchema } from '../modules/labels/schemas/label.schema';
+import { FilesService } from '../modules/files/files.service';
+import { FilesRepository, MongoFilesRepository } from '../modules/files/files.repository';
+import { FileAsset, FileSchema } from '../modules/files/schemas/file.schema';
+import { StorageService } from '../modules/files/storage/storage.service';
+import { NotificationsService } from '../modules/notifications/notifications.service';
+import {
+  MongoNotificationsRepository,
+  NotificationsRepository,
+} from '../modules/notifications/notifications.repository';
+import {
+  Notification,
+  NotificationSchema,
+} from '../modules/notifications/schemas/notification.schema';
+import { NotificationsListener } from '../modules/notifications/notifications.listener';
 import { AuthService } from '../modules/auth/auth.service';
 import { PasswordService } from '../modules/auth/password.service';
 import { TokenService } from '../modules/auth/token.service';
@@ -68,6 +88,14 @@ const testEnv: Partial<Env> = {
 
 export interface MailSpy {
   sent: Array<{ to: string; token: string }>;
+  notifications: Array<{ to: string; subject: string; text: string }>;
+}
+
+/** Records presign/download/delete calls; upload/download URLs are faked. */
+export interface StorageSpy {
+  uploads: Array<{ key: string; contentType: string }>;
+  downloads: Array<{ key: string; fileName?: string }>;
+  deleted: string[];
 }
 
 export interface TestContext {
@@ -78,9 +106,14 @@ export interface TestContext {
   projects: ProjectsService;
   sprints: SprintsService;
   tasks: TasksService;
+  comments: CommentsService;
+  labels: LabelsService;
+  files: FilesService;
+  notifications: NotificationsService;
   activity: ActivityService;
   audit: AuditService;
   mail: MailSpy;
+  storage: StorageSpy;
 }
 
 /**
@@ -88,7 +121,22 @@ export interface TestContext {
  * config + mail faked. Returns null if Mongo is unreachable so callers can skip.
  */
 export async function createTestContext(): Promise<TestContext | null> {
-  const mail: MailSpy = { sent: [] };
+  const mail: MailSpy = { sent: [], notifications: [] };
+  const storageSpy: StorageSpy = { uploads: [], downloads: [], deleted: [] };
+  const fakeStorage: StorageService = {
+    urlTtlSec: 900,
+    presignUpload: async ({ key, contentType }) => {
+      storageSpy.uploads.push({ key, contentType });
+      return `https://storage.test/upload/${encodeURIComponent(key)}`;
+    },
+    presignDownload: async ({ key, fileName }) => {
+      storageSpy.downloads.push({ key, fileName });
+      return `https://storage.test/download/${encodeURIComponent(key)}`;
+    },
+    deleteObject: async (key) => {
+      storageSpy.deleted.push(key);
+    },
+  };
   const fakeConfig = {
     get: (key: keyof Env) => testEnv[key],
     isProduction: false,
@@ -111,6 +159,10 @@ export async function createTestContext(): Promise<TestContext | null> {
           { name: Project.name, schema: ProjectSchema },
           { name: Sprint.name, schema: SprintSchema },
           { name: Task.name, schema: TaskSchema },
+          { name: Comment.name, schema: CommentSchema },
+          { name: Label.name, schema: LabelSchema },
+          { name: FileAsset.name, schema: FileSchema },
+          { name: Notification.name, schema: NotificationSchema },
         ]),
       ],
       providers: [
@@ -124,6 +176,11 @@ export async function createTestContext(): Promise<TestContext | null> {
         ProjectsService,
         SprintsService,
         TasksService,
+        CommentsService,
+        LabelsService,
+        FilesService,
+        NotificationsService,
+        NotificationsListener,
         DomainEventBus,
         AuditActivityListener,
         { provide: AppConfigService, useValue: fakeConfig },
@@ -133,8 +190,12 @@ export async function createTestContext(): Promise<TestContext | null> {
             sendPasswordReset: async (to: string, token: string) => {
               mail.sent.push({ to, token });
             },
+            sendNotification: async (to: string, subject: string, text: string) => {
+              mail.notifications.push({ to, subject, text });
+            },
           },
         },
+        { provide: StorageService, useValue: fakeStorage },
         { provide: UsersRepository, useClass: MongoUsersRepository },
         { provide: OrganizationsRepository, useClass: MongoOrganizationsRepository },
         { provide: MembershipsRepository, useClass: MongoMembershipsRepository },
@@ -143,6 +204,10 @@ export async function createTestContext(): Promise<TestContext | null> {
         { provide: ProjectsRepository, useClass: MongoProjectsRepository },
         { provide: SprintsRepository, useClass: MongoSprintsRepository },
         { provide: TasksRepository, useClass: MongoTasksRepository },
+        { provide: CommentsRepository, useClass: MongoCommentsRepository },
+        { provide: LabelsRepository, useClass: MongoLabelsRepository },
+        { provide: FilesRepository, useClass: MongoFilesRepository },
+        { provide: NotificationsRepository, useClass: MongoNotificationsRepository },
       ],
     }).compile();
     await module.init();
@@ -161,8 +226,13 @@ export async function createTestContext(): Promise<TestContext | null> {
     projects: module.get(ProjectsService),
     sprints: module.get(SprintsService),
     tasks: module.get(TasksService),
+    comments: module.get(CommentsService),
+    labels: module.get(LabelsService),
+    files: module.get(FilesService),
+    notifications: module.get(NotificationsService),
     activity: module.get(ActivityService),
     audit: module.get(AuditService),
     mail,
+    storage: storageSpy,
   };
 }
