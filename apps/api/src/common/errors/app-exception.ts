@@ -29,6 +29,10 @@ export class AppException extends HttpException {
     return new AppException(ErrorCode.VALIDATION_ERROR, message, details);
   }
 
+  static unauthenticated(message = 'Authentication required'): AppException {
+    return new AppException(ErrorCode.UNAUTHENTICATED, message);
+  }
+
   static forbidden(message = 'You do not have permission to do that'): AppException {
     return new AppException(ErrorCode.PERMISSION_DENIED, message);
   }

@@ -4,6 +4,7 @@ Each completed task adds a row at the **top**. Keep it one line; details go in `
 
 | Date | Task | Title | Status | Agent / chat | Entry |
 |------|------|-------|--------|--------------|-------|
+| 2026-07-16 | TASK-05 | Auth + RBAC backend (users/orgs/memberships, JWT + refresh rotation, guards) | ✅ done (verified live) | auth + rbac backend chat | [TASK-05.md](./TASK-05.md) |
 | 2026-07-16 | TASK-04 | Frontend skeleton & design system | ✅ done (verified) | frontend skeleton chat | [TASK-04.md](./TASK-04.md) |
 | 2026-07-15 | TASK-03 | Backend skeleton & cross-cutting concerns | ✅ done (verified live) | backend skeleton chat | [TASK-03.md](./TASK-03.md) |
 | 2026-07-15 | TASK-02 | Local infra (Mongo RS + Redis + Qdrant + MinIO) & config | ✅ done (containers healthy) | initial setup chat | [TASK-02.md](./TASK-02.md) |

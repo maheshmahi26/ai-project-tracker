@@ -4,6 +4,7 @@ import type { HealthStatus } from '@ai-projectos/shared';
 import { HealthService, type ReadinessReport } from './health.service';
 import { AppException } from '../common/errors/app-exception';
 import { Passthrough } from '../common/decorators/passthrough.decorator';
+import { Public } from '../modules/auth/decorators/public.decorator';
 
 /**
  * Health probes. Mounted OUTSIDE the /api/v1 prefix (see main.ts exclude) so
@@ -12,6 +13,7 @@ import { Passthrough } from '../common/decorators/passthrough.decorator';
  * infra tooling expects.
  */
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly health: HealthService) {}

@@ -31,11 +31,21 @@ export const envSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
 
+  // App URLs (used for password-reset links and OAuth success redirects)
+  WEB_APP_URL: z.string().url().default('http://localhost:5173'),
+
   // Auth / JWT
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be >= 16 chars'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be >= 16 chars'),
   JWT_REFRESH_TTL: z.string().default('7d'),
+  REFRESH_COOKIE_NAME: z.string().default('apos_rt'),
+  RESET_TOKEN_TTL_MIN: z.coerce.number().int().positive().default(30),
+
+  // Google OAuth (optional — routes return a clear error if unset)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3001/api/v1/auth/google/callback'),
 
   // Email (console transport in dev)
   MAIL_TRANSPORT: z.enum(['console', 'smtp']).default('console'),

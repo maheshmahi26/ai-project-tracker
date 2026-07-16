@@ -5,6 +5,7 @@ import { APP_NAME } from '@ai-projectos/shared';
 import { AppConfigService } from './config/config.module';
 import { AppException } from './common/errors/app-exception';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
+import { Public } from './modules/auth/decorators/public.decorator';
 
 const echoSchema = z.object({
   name: z.string().min(1),
@@ -13,6 +14,7 @@ const echoSchema = z.object({
 type EchoDto = z.infer<typeof echoSchema>;
 
 @ApiTags('app')
+@Public()
 @Controller()
 export class AppController {
   constructor(private readonly config: AppConfigService) {}

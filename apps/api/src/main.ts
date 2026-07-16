@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config.module';
 import { initSentry } from './observability/sentry';
@@ -22,6 +23,7 @@ async function bootstrap(): Promise<void> {
 
   // Security headers. CSP disabled so Swagger UI renders; tighten in TASK-15.
   app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(cookieParser());
   app.enableCors({ origin: config.corsOrigins, credentials: true });
 
   // Versioned API prefix; health probes stay at the root for load balancers.

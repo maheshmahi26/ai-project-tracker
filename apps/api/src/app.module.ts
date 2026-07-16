@@ -14,6 +14,11 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { buildLoggerOptions } from './observability/logger';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -33,6 +38,10 @@ import { buildLoggerOptions } from './observability/logger';
       }),
     }),
     HealthModule,
+    AuditModule,
+    UsersModule,
+    AuthModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -42,7 +51,9 @@ import { buildLoggerOptions } from './observability/logger';
     { provide: APP_INTERCEPTOR, useClass: TimeoutInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // Rate limiting first, then authentication (JWT) for all routes except @Public.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
 export class AppModule {}
