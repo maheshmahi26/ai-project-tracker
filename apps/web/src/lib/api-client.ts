@@ -23,17 +23,20 @@ export class ApiClientError extends Error {
 }
 
 type TokenProvider = () => string | null;
+type OrgIdProvider = () => string | null;
 type RefreshHandler = () => Promise<boolean>;
 
-// Auth is wired here but the actual token store + refresh flow arrives in TASK-06.
 let getToken: TokenProvider = () => null;
+let getOrgId: OrgIdProvider = () => null;
 let refreshHandler: RefreshHandler | null = null;
 
 export function configureApiAuth(opts: {
   getToken?: TokenProvider;
+  getOrgId?: OrgIdProvider;
   onRefresh?: RefreshHandler;
 }): void {
   if (opts.getToken) getToken = opts.getToken;
+  if (opts.getOrgId) getOrgId = opts.getOrgId;
   if (opts.onRefresh !== undefined) refreshHandler = opts.onRefresh;
 }
 
@@ -84,6 +87,8 @@ async function request<T>(path: string, options: InternalOptions): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const orgId = getOrgId();
+  if (orgId && !('x-org-id' in headers)) headers['x-org-id'] = orgId;
 
   let serializedBody: BodyInit | undefined;
   if (options.body !== undefined) {
@@ -119,6 +124,8 @@ async function requestWithMeta<T>(
   const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const orgId = getOrgId();
+  if (orgId && !('x-org-id' in headers)) headers['x-org-id'] = orgId;
 
   const res = await fetch(buildUrl(path, options.params), {
     method: options.method,

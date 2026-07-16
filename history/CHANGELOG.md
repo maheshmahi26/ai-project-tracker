@@ -4,6 +4,7 @@ Each completed task adds a row at the **top**. Keep it one line; details go in `
 
 | Date | Task | Title | Status | Agent / chat | Entry |
 |------|------|-------|--------|--------------|-------|
+| 2026-07-16 | TASK-08 | Projects frontend (list/detail, CRUD dialogs, optimistic archive/restore/delete+undo) | ✅ done (typecheck/lint/24 tests) | projects frontend chat | [TASK-08.md](./TASK-08.md) |
 | 2026-07-16 | TASK-07 | Projects backend + activity/audit domain event bus | ✅ done (54 tests + live smoke) | projects backend chat | [TASK-07.md](./TASK-07.md) |
 | 2026-07-16 | TASK-06 | Auth frontend + org bootstrap (session refresh, guards, RBAC UI) | ✅ done (typecheck/lint/test/build) | auth frontend chat | [TASK-06.md](./TASK-06.md) |
 | 2026-07-16 | TASK-05 | Auth + RBAC backend (users/orgs/memberships, JWT + refresh rotation, guards) | ✅ done (verified live) | auth + rbac backend chat | [TASK-05.md](./TASK-05.md) |

@@ -12,6 +12,7 @@ import NotFoundPage from '@/features/misc/not-found-page';
 // shown behind the layout's <Suspense> skeleton.
 const DashboardPage = lazy(() => import('@/features/dashboard/routes/dashboard-page'));
 const ProjectsPage = lazy(() => import('@/features/projects/routes/projects-page'));
+const ProjectDetailPage = lazy(() => import('@/features/projects/routes/project-detail-page'));
 const TasksPage = lazy(() => import('@/features/tasks/routes/tasks-page'));
 const SettingsPage = lazy(() => import('@/features/settings/routes/settings-page'));
 const OnboardingPage = lazy(() => import('@/features/organizations/routes/onboarding-page'));
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <DashboardPage /> },
               { path: 'projects', element: <ProjectsPage /> },
+              { path: 'projects/:projectId', element: <ProjectDetailPage /> },
               { path: 'tasks', element: <TasksPage /> },
               { path: 'settings', element: <SettingsPage /> },
             ],

@@ -18,8 +18,15 @@ export const queryKeys = {
   },
   projects: {
     all: ['projects'] as const,
-    list: (filters?: Record<string, unknown>) => ['projects', 'list', filters ?? {}] as const,
+    lists: ['projects', 'list'] as const,
+    list: (orgId: string | null, filters?: Record<string, unknown>) =>
+      ['projects', 'list', orgId, filters ?? {}] as const,
     detail: (id: string) => ['projects', 'detail', id] as const,
+  },
+  activity: {
+    all: ['activity'] as const,
+    list: (orgId: string | null, filters?: Record<string, unknown>) =>
+      ['activity', 'list', orgId, filters ?? {}] as const,
   },
   tasks: {
     all: ['tasks'] as const,
