@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';
 import { Test, type TestingModule } from '@nestjs/testing';
@@ -8,6 +9,20 @@ import type { Env } from '../config/env.schema';
 import { AuditService } from '../modules/audit/audit.service';
 import { AuditLog, AuditLogSchema } from '../modules/audit/schemas/audit-log.schema';
 import { AuditLogRepository, MongoAuditLogRepository } from '../modules/audit/audit.repository';
+import { ActivityService } from '../modules/activity/activity.service';
+import {
+  ActivityLog,
+  ActivityLogSchema,
+} from '../modules/activity/schemas/activity-log.schema';
+import {
+  ActivityLogRepository,
+  MongoActivityLogRepository,
+} from '../modules/activity/activity.repository';
+import { DomainEventBus } from '../modules/events/domain-event-bus';
+import { AuditActivityListener } from '../modules/events/audit-activity.listener';
+import { ProjectsService } from '../modules/projects/projects.service';
+import { MongoProjectsRepository, ProjectsRepository } from '../modules/projects/projects.repository';
+import { Project, ProjectSchema } from '../modules/projects/schemas/project.schema';
 import { AuthService } from '../modules/auth/auth.service';
 import { PasswordService } from '../modules/auth/password.service';
 import { TokenService } from '../modules/auth/token.service';
@@ -54,6 +69,9 @@ export interface TestContext {
   connection: Connection;
   auth: AuthService;
   orgs: OrganizationsService;
+  projects: ProjectsService;
+  activity: ActivityService;
+  audit: AuditService;
   mail: MailSpy;
 }
 
@@ -73,6 +91,7 @@ export async function createTestContext(): Promise<TestContext | null> {
   try {
     module = await Test.createTestingModule({
       imports: [
+        EventEmitterModule.forRoot({ wildcard: true }),
         JwtModule.register({}),
         MongooseModule.forRoot(TEST_MONGO_URI, { serverSelectionTimeoutMS: 3000 }),
         MongooseModule.forFeature([
@@ -80,6 +99,8 @@ export async function createTestContext(): Promise<TestContext | null> {
           { name: Organization.name, schema: OrganizationSchema },
           { name: Membership.name, schema: MembershipSchema },
           { name: AuditLog.name, schema: AuditLogSchema },
+          { name: ActivityLog.name, schema: ActivityLogSchema },
+          { name: Project.name, schema: ProjectSchema },
         ]),
       ],
       providers: [
@@ -89,6 +110,10 @@ export async function createTestContext(): Promise<TestContext | null> {
         MembershipsService,
         OrganizationsService,
         AuditService,
+        ActivityService,
+        ProjectsService,
+        DomainEventBus,
+        AuditActivityListener,
         { provide: AppConfigService, useValue: fakeConfig },
         {
           provide: MailService,
@@ -102,6 +127,8 @@ export async function createTestContext(): Promise<TestContext | null> {
         { provide: OrganizationsRepository, useClass: MongoOrganizationsRepository },
         { provide: MembershipsRepository, useClass: MongoMembershipsRepository },
         { provide: AuditLogRepository, useClass: MongoAuditLogRepository },
+        { provide: ActivityLogRepository, useClass: MongoActivityLogRepository },
+        { provide: ProjectsRepository, useClass: MongoProjectsRepository },
       ],
     }).compile();
     await module.init();
@@ -117,6 +144,9 @@ export async function createTestContext(): Promise<TestContext | null> {
     connection,
     auth: module.get(AuthService),
     orgs: module.get(OrganizationsService),
+    projects: module.get(ProjectsService),
+    activity: module.get(ActivityService),
+    audit: module.get(AuditService),
     mail,
   };
 }

@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { AuditLogRepository } from './audit.repository';
+import type { AuditLogDTO, ListAuditQuery } from '@ai-projectos/shared';
+import { buildCursorPage, decodeCursor, PaginatedResult } from '../../common/pagination/pagination';
+import { AuditLogRepository, type AuditLogLean } from './audit.repository';
 
 export interface AuditInput {
   action: string;
@@ -47,4 +49,31 @@ export class AuditService {
       this.logger.error(`Failed to write audit log for ${input.action}`, error as Error);
     }
   }
+
+  async list(orgId: string, query: ListAuditQuery): Promise<PaginatedResult<AuditLogDTO>> {
+    const rows = await this.repo.list({
+      orgId,
+      action: query.action,
+      entityType: query.entityType,
+      entityId: query.entityId,
+      beforeId: decodeCursor(query.cursor) ?? undefined,
+      limit: query.limit,
+    });
+    return buildCursorPage(rows.map(toAuditDTO), query.limit, (item) => item.id);
+  }
+}
+
+function toAuditDTO(row: AuditLogLean): AuditLogDTO {
+  return {
+    id: row._id.toString(),
+    orgId: row.orgId ? row.orgId.toString() : null,
+    actorId: row.actorId ? row.actorId.toString() : null,
+    actorType: row.actorType,
+    action: row.action,
+    entity: row.entity ?? null,
+    before: row.before ?? null,
+    after: row.after ?? null,
+    source: row.source,
+    createdAt: row.createdAt.toISOString(),
+  };
 }

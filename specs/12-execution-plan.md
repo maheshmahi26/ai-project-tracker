@@ -136,7 +136,7 @@ The [`../history/`](../history/) folder is the durable memory of the build.
 | TASK-04 | Frontend skeleton | Foundation | ✅ done (2026-07-16, verified) |
 | TASK-05 | Auth + RBAC backend | Human | ✅ done (2026-07-16, verified live) |
 | TASK-06 | Auth frontend + org bootstrap | Human | ✅ done (2026-07-16, typecheck/lint/test/build) |
-| TASK-07 | Projects backend | Human | ☐ |
+| TASK-07 | Projects backend | Human | ✅ done (2026-07-16, 54 tests + live smoke) |
 | TASK-08 | Projects frontend | Human | ☐ |
 | TASK-09 | Sprints + Tasks backend | Human | ☐ |
 | TASK-10 | Comments/Labels/Files/Notifications | Human | ☐ |

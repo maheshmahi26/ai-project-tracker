@@ -227,3 +227,126 @@ export interface MembershipDTO {
   user?: PublicUser;
   joinedAt?: string | null;
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Projects
+// ───────────────────────────────────────────────────────────────────────────
+
+export const PROJECT_STATUSES = ['active', 'archived'] as const;
+export const projectStatusSchema = z.enum(PROJECT_STATUSES);
+export type ProjectStatus = z.infer<typeof projectStatusSchema>;
+
+/** Human project key, e.g. `AUTH`. Uppercase, starts with a letter. */
+export const projectKeySchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z][A-Z0-9]{1,9}$/, 'Key must be 2–10 chars, start with a letter (A–Z, 0–9)');
+
+const hexColorSchema = z
+  .string()
+  .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Color must be a hex value like #4f46e5');
+
+const isoDateSchema = z
+  .string()
+  .datetime({ offset: true })
+  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
+
+const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id');
+
+export const createProjectSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  key: projectKeySchema.optional(),
+  description: z.string().trim().max(2000).optional(),
+  leadId: objectIdSchema.optional(),
+  color: hexColorSchema.optional(),
+  startDate: isoDateSchema.optional(),
+  targetDate: isoDateSchema.optional(),
+});
+export type CreateProjectInput = z.infer<typeof createProjectSchema>;
+
+export const updateProjectSchema = z
+  .object({
+    name: z.string().trim().min(2).max(120),
+    description: z.string().trim().max(2000).nullable(),
+    leadId: objectIdSchema.nullable(),
+    color: hexColorSchema,
+    startDate: isoDateSchema.nullable(),
+    targetDate: isoDateSchema.nullable(),
+  })
+  .partial();
+export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+/** List query: filter by status, full-text `q`, sort, cursor OR offset pagination. */
+export const PROJECT_SORT_FIELDS = ['createdAt', 'updatedAt', 'name', 'key'] as const;
+export const listProjectsQuerySchema = z.object({
+  status: z.enum(['active', 'archived', 'all']).default('active'),
+  q: z.string().trim().max(200).optional(),
+  sort: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
+});
+export type ListProjectsQuery = z.infer<typeof listProjectsQuerySchema>;
+
+export interface ProjectDTO {
+  id: string;
+  orgId: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  leadId?: string | null;
+  status: ProjectStatus;
+  color: string;
+  startDate?: string | null;
+  targetDate?: string | null;
+  counters: { taskSeq: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Activity & Audit (read models)
+// ───────────────────────────────────────────────────────────────────────────
+
+export const listActivityQuerySchema = z.object({
+  projectId: objectIdSchema.optional(),
+  entityType: z.string().trim().max(40).optional(),
+  entityId: objectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+});
+export type ListActivityQuery = z.infer<typeof listActivityQuerySchema>;
+
+export const listAuditQuerySchema = z.object({
+  action: z.string().trim().max(60).optional(),
+  entityType: z.string().trim().max(40).optional(),
+  entityId: objectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+});
+export type ListAuditQuery = z.infer<typeof listAuditQuerySchema>;
+
+export interface ActivityLogDTO {
+  id: string;
+  orgId: string;
+  actorId?: string | null;
+  verb: string;
+  object: { type: string; id: string; label: string };
+  projectId?: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogDTO {
+  id: string;
+  orgId?: string | null;
+  actorId?: string | null;
+  actorType: 'user' | 'ai' | 'system';
+  action: string;
+  entity?: { type: string; id: string } | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  source: 'ui' | 'ai' | 'system';
+  createdAt: string;
+}

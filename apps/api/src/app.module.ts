@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
@@ -15,15 +16,20 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { buildLoggerOptions } from './observability/logger';
 import { AuditModule } from './modules/audit/audit.module';
+import { ActivityModule } from './modules/activity/activity.module';
+import { EventsModule } from './modules/events/events.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { TimelineModule } from './modules/timeline/timeline.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
     AppConfigModule,
     LoggerModule.forRoot(buildLoggerOptions()),
+    EventEmitterModule.forRoot({ wildcard: true }),
     RedisModule,
     DatabaseModule,
     QueueModule,
@@ -39,9 +45,13 @@ import { UsersModule } from './modules/users/users.module';
     }),
     HealthModule,
     AuditModule,
+    ActivityModule,
+    EventsModule,
     UsersModule,
     AuthModule,
     OrganizationsModule,
+    ProjectsModule,
+    TimelineModule,
   ],
   controllers: [AppController],
   providers: [
