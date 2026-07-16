@@ -133,7 +133,7 @@ The [`../history/`](../history/) folder is the durable memory of the build.
 | TASK-01 | Monorepo & tooling | Foundation | ✅ done (2026-07-15, installed & building) |
 | TASK-02 | Local infra (Mongo/Redis/Qdrant/MinIO) | Foundation | ✅ done (2026-07-15, containers healthy) |
 | TASK-03 | Backend skeleton | Foundation | ✅ done (2026-07-15, verified live) |
-| TASK-04 | Frontend skeleton | Foundation | ☐ |
+| TASK-04 | Frontend skeleton | Foundation | ✅ done (2026-07-16, verified) |
 | TASK-05 | Auth + RBAC backend | Human | ☐ |
 | TASK-06 | Auth frontend + org bootstrap | Human | ☐ |
 | TASK-07 | Projects backend | Human | ☐ |
