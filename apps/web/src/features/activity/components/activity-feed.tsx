@@ -21,8 +21,19 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export function ActivityFeed({ projectId }: { projectId?: string }): React.JSX.Element {
-  const { data, isLoading, isError } = useActivity(projectId ? { projectId } : {});
+export function ActivityFeed({
+  projectId,
+  entityType,
+  entityId,
+}: {
+  projectId?: string;
+  entityType?: string;
+  entityId?: string;
+}): React.JSX.Element {
+  const { data, isLoading, isError } = useActivity({
+    ...(projectId ? { projectId } : {}),
+    ...(entityType && entityId ? { entityType, entityId } : {}),
+  });
   const items = data?.items ?? [];
 
   if (isLoading) {

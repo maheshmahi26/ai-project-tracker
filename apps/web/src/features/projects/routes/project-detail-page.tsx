@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ArrowLeft, Pencil } from 'lucide-react';
-import type { ProjectDTO } from '@ai-projectos/shared';
+import { Archive, ArchiveRestore, ArrowLeft, Pencil, Plus } from 'lucide-react';
+import type { ProjectDTO, TaskStatus } from '@ai-projectos/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,9 +9,51 @@ import { EmptyState } from '@/components/empty-states/empty-state';
 import { cn } from '@/lib/utils';
 import { useCan } from '@/hooks/use-can';
 import { ActivityFeed } from '@/features/activity/components/activity-feed';
+import { KanbanBoard } from '@/features/tasks/components/kanban-board';
+import { TaskFormDialog } from '@/features/tasks/components/task-form-dialog';
 import { ProjectFormDialog } from '../components/project-form-dialog';
 import { ProjectStatusBadge } from '../components/project-status-badge';
 import { useArchiveProject, useProject, useRestoreProject } from '../hooks/use-projects';
+
+function BoardTab({ projectId }: { projectId: string }): React.JSX.Element {
+  const navigate = useNavigate();
+  const canCreate = useCan('task:create');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [defaultStatus, setDefaultStatus] = useState<TaskStatus | undefined>(undefined);
+
+  return (
+    <div className="space-y-4">
+      {canCreate && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => {
+              setDefaultStatus(undefined);
+              setDialogOpen(true);
+            }}
+          >
+            <Plus />
+            New task
+          </Button>
+        </div>
+      )}
+      <KanbanBoard
+        projectId={projectId}
+        onOpenTask={(id) => navigate(`/tasks/${id}`)}
+        onQuickAdd={(s) => {
+          setDefaultStatus(s);
+          setDialogOpen(true);
+        }}
+      />
+      <TaskFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        projectId={projectId}
+        defaultStatus={defaultStatus}
+      />
+    </div>
+  );
+}
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -185,7 +227,7 @@ export default function ProjectDetailPage(): React.JSX.Element {
       </div>
 
       {tab === 'overview' && <OverviewTab project={project} />}
-      {tab === 'board' && <PlaceholderTab label="Board" />}
+      {tab === 'board' && <BoardTab projectId={project.id} />}
       {tab === 'sprints' && <PlaceholderTab label="Sprints" />}
       {tab === 'activity' && (
         <Card>

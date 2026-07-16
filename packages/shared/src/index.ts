@@ -611,6 +611,12 @@ export const presignFileSchema = z.object({
 });
 export type PresignFileInput = z.infer<typeof presignFileSchema>;
 
+export const listFilesQuerySchema = z.object({
+  scopeType: z.enum(FILE_SCOPE_TYPES),
+  scopeId: objectIdSchema,
+});
+export type ListFilesQuery = z.infer<typeof listFilesQuerySchema>;
+
 export const confirmFileSchema = z.object({
   storageKey: z.string().trim().min(1).max(500),
   fileName: z.string().trim().min(1).max(255),

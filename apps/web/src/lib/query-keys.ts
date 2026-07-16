@@ -30,7 +30,28 @@ export const queryKeys = {
   },
   tasks: {
     all: ['tasks'] as const,
-    list: (filters?: Record<string, unknown>) => ['tasks', 'list', filters ?? {}] as const,
+    lists: ['tasks', 'list'] as const,
+    list: (orgId: string | null, filters?: Record<string, unknown>) =>
+      ['tasks', 'list', orgId, filters ?? {}] as const,
+    boards: ['tasks', 'board'] as const,
+    board: (orgId: string | null, projectId: string) =>
+      ['tasks', 'board', orgId, projectId] as const,
     detail: (id: string) => ['tasks', 'detail', id] as const,
+    subtasks: (parentId: string) => ['tasks', 'subtasks', parentId] as const,
+  },
+  comments: {
+    all: ['comments'] as const,
+    list: (taskId: string) => ['comments', 'list', taskId] as const,
+  },
+  files: {
+    all: ['files'] as const,
+    list: (scopeType: string, scopeId: string) => ['files', 'list', scopeType, scopeId] as const,
+  },
+  notifications: {
+    all: ['notifications'] as const,
+    lists: ['notifications', 'list'] as const,
+    list: (orgId: string | null, filters?: Record<string, unknown>) =>
+      ['notifications', 'list', orgId, filters ?? {}] as const,
+    unreadCount: (orgId: string | null) => ['notifications', 'unread-count', orgId] as const,
   },
 } as const;

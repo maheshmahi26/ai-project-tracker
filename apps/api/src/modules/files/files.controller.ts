@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -14,9 +15,11 @@ import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import {
   confirmFileSchema,
+  listFilesQuerySchema,
   presignFileSchema,
   type ConfirmFileInput,
   type FileDTO,
+  type ListFilesQuery,
   type PresignFileInput,
   type PresignFileResult,
 } from '@ai-projectos/shared';
@@ -36,6 +39,16 @@ import { FilesService } from './files.service';
 @UseGuards(TenantGuard, PermissionsGuard)
 export class FilesController {
   constructor(private readonly files: FilesService) {}
+
+  @Get()
+  @Permissions('read')
+  @ApiOperation({ summary: 'List files attached to a task/project/comment' })
+  list(
+    @Query(new ZodValidationPipe(listFilesQuerySchema)) query: ListFilesQuery,
+    @CurrentOrg() org: OrgContext,
+  ): Promise<FileDTO[]> {
+    return this.files.listByScope(org.orgId, query.scopeType, query.scopeId);
+  }
 
   @Post('presign')
   @Permissions('task:update')

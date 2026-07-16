@@ -14,6 +14,7 @@ const DashboardPage = lazy(() => import('@/features/dashboard/routes/dashboard-p
 const ProjectsPage = lazy(() => import('@/features/projects/routes/projects-page'));
 const ProjectDetailPage = lazy(() => import('@/features/projects/routes/project-detail-page'));
 const TasksPage = lazy(() => import('@/features/tasks/routes/tasks-page'));
+const TaskDetailPage = lazy(() => import('@/features/tasks/routes/task-detail-page'));
 const SettingsPage = lazy(() => import('@/features/settings/routes/settings-page'));
 const OnboardingPage = lazy(() => import('@/features/organizations/routes/onboarding-page'));
 
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
               { path: 'projects', element: <ProjectsPage /> },
               { path: 'projects/:projectId', element: <ProjectDetailPage /> },
               { path: 'tasks', element: <TasksPage /> },
+              { path: 'tasks/:taskId', element: <TaskDetailPage /> },
               { path: 'settings', element: <SettingsPage /> },
             ],
           },

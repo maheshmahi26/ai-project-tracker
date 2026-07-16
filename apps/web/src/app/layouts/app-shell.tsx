@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  Bell,
   CheckSquare,
   FolderKanban,
   LayoutDashboard,
@@ -32,6 +31,7 @@ import { useUiStore } from '@/stores/ui-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useLogout } from '@/features/auth/hooks/use-auth';
 import { OrgSwitcher } from '@/features/organizations/components/org-switcher';
+import { NotificationCenter } from '@/features/notifications/components/notification-center';
 
 function initials(name: string | undefined): string {
   if (!name) return 'U';
@@ -146,9 +146,7 @@ function TopBar(): React.JSX.Element {
       </button>
 
       <div className="ml-auto flex items-center gap-1">
-        <Button variant="ghost" size="icon" aria-label="Notifications">
-          <Bell />
-        </Button>
+        <NotificationCenter />
         <ThemeToggle />
 
         <DropdownMenu>

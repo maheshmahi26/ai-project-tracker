@@ -13,6 +13,7 @@ export abstract class FilesRepository {
   abstract findById(orgId: string, id: string): Promise<FileLean | null>;
   abstract create(data: Partial<FileAsset>): Promise<FileLean>;
   abstract softDelete(orgId: string, id: string): Promise<boolean>;
+  abstract listByScope(orgId: string, scopeType: string, scopeId: string): Promise<FileLean[]>;
 }
 
 @Injectable()
@@ -40,5 +41,21 @@ export class MongoFilesRepository extends FilesRepository {
       )
       .exec();
     return res.modifiedCount > 0;
+  }
+
+  listByScope(orgId: string, scopeType: string, scopeId: string): Promise<FileLean[]> {
+    if (!Types.ObjectId.isValid(orgId) || !Types.ObjectId.isValid(scopeId)) {
+      return Promise.resolve([]);
+    }
+    return this.model
+      .find({
+        orgId: new Types.ObjectId(orgId),
+        'scope.type': scopeType,
+        'scope.id': scopeId,
+        isDeleted: { $ne: true },
+      })
+      .sort({ _id: -1 })
+      .lean<FileLean[]>()
+      .exec();
   }
 }

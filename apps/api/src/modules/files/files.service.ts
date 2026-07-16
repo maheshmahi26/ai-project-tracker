@@ -64,6 +64,11 @@ export class FilesService {
     return toFileDTO(file);
   }
 
+  async listByScope(orgId: string, scopeType: string, scopeId: string): Promise<FileDTO[]> {
+    const files = await this.repo.listByScope(orgId, scopeType, scopeId);
+    return files.map(toFileDTO);
+  }
+
   /** Returns a short-lived presigned GET URL for the private object. */
   async download(orgId: string, id: string): Promise<{ url: string; expiresInSec: number }> {
     const file = await this.requireFile(orgId, id);
