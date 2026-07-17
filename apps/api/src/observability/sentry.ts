@@ -10,10 +10,15 @@ export function initSentry(): void {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) return;
 
+  const isProd = process.env.NODE_ENV === 'production';
+  const sampleRate = process.env.SENTRY_TRACES_SAMPLE_RATE;
+
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV ?? 'development',
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    // Release ties errors + source maps to a build (git SHA, set by CI on deploy).
+    release: process.env.SENTRY_RELEASE,
+    tracesSampleRate: sampleRate !== undefined ? Number(sampleRate) : isProd ? 0.1 : 1.0,
   });
   initialized = true;
 }

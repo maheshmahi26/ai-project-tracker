@@ -1,4 +1,5 @@
 import type { Params } from 'nestjs-pino';
+import type { TransportSingleOptions } from 'pino';
 import { genRequestId } from '../common/request/request-context';
 
 /**
@@ -16,20 +17,41 @@ export function buildLoggerOptions(): Params {
       genReqId: genRequestId,
       autoLogging: true,
       redact: {
-        paths: [
-          'req.headers.authorization',
-          'req.headers.cookie',
-          'res.headers["set-cookie"]',
-        ],
+        paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
         remove: true,
       },
       customProps: (req) => ({ requestId: (req as { id?: string }).id }),
-      transport: isProd
-        ? undefined
-        : {
-            target: 'pino-pretty',
-            options: { singleLine: true, translateTime: 'SYS:standard' },
-          },
+      transport: buildTransport(isProd),
     },
   };
+}
+
+/**
+ * Log transport selection:
+ *  - Better Stack (Logtail) when BETTER_STACK_SOURCE_TOKEN is set — structured
+ *    JSON logs shipped for search/alerting (prod).
+ *  - pino-pretty locally for human-readable output.
+ *  - default stdout JSON otherwise (e.g. prod without Better Stack; the platform
+ *    collects stdout).
+ */
+function buildTransport(isProd: boolean): TransportSingleOptions | undefined {
+  const betterStackToken = process.env.BETTER_STACK_SOURCE_TOKEN;
+  if (betterStackToken) {
+    return {
+      target: '@logtail/pino',
+      options: {
+        sourceToken: betterStackToken,
+        ...(process.env.BETTER_STACK_INGEST_URL
+          ? { options: { endpoint: process.env.BETTER_STACK_INGEST_URL } }
+          : {}),
+      },
+    };
+  }
+  if (!isProd) {
+    return {
+      target: 'pino-pretty',
+      options: { singleLine: true, translateTime: 'SYS:standard' },
+    };
+  }
+  return undefined;
 }

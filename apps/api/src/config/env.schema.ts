@@ -10,6 +10,10 @@ export const envSchema = z.object({
   API_PREFIX: z.string().default('api'),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
+  // Global rate limiting (Redis-backed). Stricter per-route limits layer on top.
+  RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+
   // MongoDB (single-node replica set locally so transactions work)
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
 
@@ -61,7 +65,15 @@ export const envSchema = z.object({
 
   // Observability (optional locally)
   SENTRY_DSN: z.string().optional(),
+  // Release identifier used by Sentry + as an app version tag (usually the git SHA).
+  SENTRY_RELEASE: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  // OpenTelemetry OTLP/HTTP traces endpoint (e.g. http://collector:4318).
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+  OTEL_SERVICE_NAME: z.string().default('ai-projectos-api'),
+  // Better Stack (Logtail) log ingestion — Pino ships structured logs when set.
+  BETTER_STACK_SOURCE_TOKEN: z.string().optional(),
+  BETTER_STACK_INGEST_URL: z.string().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 });
 

@@ -1,0 +1,29 @@
+# Keep build context small + secrets out of images.
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+
+# playwright / test artifacts
+**/test-results
+**/playwright-report
+**/blob-report
+**/.playwright
+
+# env & secrets (config comes from the platform at runtime)
+.env
+.env.*
+!.env.example
+
+# vcs / editor / os
+.git
+.github
+.idea
+.vscode
+**/.DS_Store
+
+# docs & local infra not needed in images
+docker/.data
+*.md

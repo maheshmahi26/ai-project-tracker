@@ -4,7 +4,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { AppConfigModule } from './config/config.module';
+import { AppConfigModule, AppConfigService } from './config/config.module';
 import { DatabaseModule } from './infra/database/database.module';
 import { RedisModule, RedisService } from './infra/redis/redis.module';
 import { QueueModule } from './infra/queue/queue.module';
@@ -41,13 +41,13 @@ import { UsersModule } from './modules/users/users.module';
     RedisModule,
     DatabaseModule,
     QueueModule,
-    // Global rate limiting backed by Redis (100 req / 60s by default).
-    // Stricter per-route limits (auth, ai) are layered on in later tasks.
+    // Global rate limiting backed by Redis (100 req / 60s by default, tunable via
+    // RATE_LIMIT_TTL_MS / RATE_LIMIT_MAX). Stricter per-route limits layer on top.
     ThrottlerModule.forRootAsync({
-      imports: [RedisModule],
-      inject: [RedisService],
-      useFactory: (redis: RedisService) => ({
-        throttlers: [{ ttl: 60_000, limit: 100 }],
+      imports: [RedisModule, AppConfigModule],
+      inject: [RedisService, AppConfigService],
+      useFactory: (redis: RedisService, config: AppConfigService) => ({
+        throttlers: [{ ttl: config.get('RATE_LIMIT_TTL_MS'), limit: config.get('RATE_LIMIT_MAX') }],
         storage: new ThrottlerStorageRedisService(redis.client),
       }),
     }),

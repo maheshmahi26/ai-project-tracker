@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f docker/docker-compose.yml
 
-.PHONY: help install up up-tools down stop logs ps reset seed dev api web build lint typecheck test format
+.PHONY: help install up up-tools down stop logs ps reset seed migrate dev api web build lint typecheck test format
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -32,6 +32,11 @@ reset: ## DANGER: stop infra and delete all data volumes
 
 seed: ## Seed the database with sample data (implemented in a later task)
 	@echo "seed: not implemented yet (added in a later task)"
+
+migrate: ## Sync Mongo indexes + bootstrap the Qdrant collection (idempotent)
+	pnpm --filter @ai-projectos/shared build
+	pnpm --filter @ai-projectos/api build
+	pnpm --filter @ai-projectos/api migrate
 
 dev: ## Run api + web in watch mode
 	pnpm dev

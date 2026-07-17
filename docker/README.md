@@ -37,5 +37,44 @@ docker compose -f docker/docker-compose.yml --profile tools up -d
 - **Replica set auto-init:** the `mongo` container's healthcheck runs `rs.initiate(...)` on first boot, then reports healthy. Wait until `make ps` shows mongo as `healthy` before starting the API.
 - **Transactions:** the API connects with `directConnection=true`, which works with the single-node replica set and supports multi-document transactions.
 - **Data persistence:** each service uses a named volume (`mongo-data`, `redis-data`, `qdrant-data`, `minio-data`). `make reset` wipes them.
-- **Qdrant collection** (name/vector-size/distance) is created by the API on boot in a later task (TASK-20); the container just provides the engine.
+- **Qdrant collection** (name/vector-size/distance) is bootstrapped by the migration runner (`make migrate`) and populated in TASK-20; the container just provides the engine.
 - **Env:** copy `.env.example` → `.env` at the repo root; defaults already match this stack.
+
+## Migrations / bootstrap
+
+Idempotent step run before an app takes traffic (and locally):
+
+```bash
+make migrate     # builds shared+api, syncs Mongo indexes + text indexes, bootstraps the Qdrant collection
+```
+
+In production `autoIndex` is **off**, so this step is what creates indexes. It is safe to re-run.
+
+## Production (self-hosted data tier + images)
+
+`docker/docker-compose.prod.yml` runs the self-hosted **Mongo (RS) + Redis + Qdrant**
+plus the **API** and **worker** built from `apps/api/Dockerfile` (same image, two
+entrypoints). The web SPA ships to Vercel (or self-host via `apps/web/Dockerfile`).
+
+```bash
+# Secrets live in .env.prod (never committed) — see .env.example for keys.
+docker compose -f docker/docker-compose.prod.yml --env-file .env.prod up -d --build
+docker compose -f docker/docker-compose.prod.yml --env-file .env.prod run --rm migrate
+```
+
+Hardening notes for a real deployment:
+
+- **Auth:** enable MongoDB auth + a replica-set keyfile; set `REDIS_PASSWORD`; set `QDRANT_API_KEY`.
+- **Secrets** come from the platform's secret manager (Railway variables / Vercel env), not files.
+- **Images** run as a non-root user and expose a `HEALTHCHECK` on `/health/ready` (API) — the
+  platform uses it for health-gated, zero-downtime cutover; rollback = redeploy the previous image.
+- **Files** use Cloudflare R2 / S3 in prod (MinIO is local only).
+
+## Observability
+
+- **Errors:** set `SENTRY_DSN` (API) / `VITE_SENTRY_DSN` (web); `SENTRY_RELEASE` (git SHA) ties
+  errors + source maps to a build. Every API error carries its `requestId`.
+- **Traces:** set `OTEL_EXPORTER_OTLP_ENDPOINT` to a collector; the API auto-instruments
+  HTTP → Express → Mongo/Redis. No-op when unset.
+- **Logs:** set `BETTER_STACK_SOURCE_TOKEN` to ship structured Pino logs to Better Stack;
+  otherwise logs go to stdout (JSON in prod, pretty locally). Logs carry `requestId`.

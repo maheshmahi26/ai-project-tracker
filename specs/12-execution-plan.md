@@ -144,7 +144,7 @@ The [`../history/`](../history/) folder is the durable memory of the build.
 | TASK-12 | Dashboard backend | Human | ✅ done (2026-07-16, 109 API tests + build; cached aggregations + CSV export) |
 | TASK-13 | Dashboard frontend | Human | ✅ done (2026-07-16, typecheck/lint/45 web tests + build; lazy Recharts, URL filter, RBAC CSV export) |
 | TASK-14 | Testing hardening | Human | ✅ done (2026-07-17, API 119 tests @ 86% lines/92% funcs + web 45 tests coverage-gated; CI + nightly E2E workflows; Playwright journeys scaffolded) |
-| TASK-15 | Deployment & observability | Human | ☐ |
+| TASK-15 | Deployment & observability | Human | ✅ done (2026-07-17, multi-stage Docker + migration runner verified + OTel/Sentry/Better Stack wiring + Vercel/Railway deploy workflows; typecheck/lint/build green) |
 | TASK-16 | AI foundation | AI | ☐ |
 | TASK-17 | AI action/CRUD tools | AI | ☐ |
 | TASK-18 | AI generative tools | AI | ☐ |

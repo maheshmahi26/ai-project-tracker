@@ -28,6 +28,7 @@ export default defineConfig({
         'src/observability/**',
         'src/infra/**',
         'src/health/**',
+        'src/scripts/**',
         'src/test/**',
         'src/**/*.spec.ts',
       ],
