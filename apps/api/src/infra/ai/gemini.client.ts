@@ -33,6 +33,22 @@ export interface GeminiGenerateParams {
   onToken?: (delta: string) => void;
 }
 
+/** Single-shot JSON-mode generation used by the generative tools (TASK-18). */
+export interface GeminiJsonParams {
+  systemInstruction?: string;
+  prompt: string;
+  /** JSON Schema constraining the model's response (Gemini `responseJsonSchema`). */
+  responseSchema?: unknown;
+  signal?: AbortSignal;
+}
+
+export interface GeminiJsonResult {
+  /** Parsed JSON object (already `JSON.parse`d from the model's text). */
+  json: unknown;
+  raw: string;
+  tokens: { in: number; out: number };
+}
+
 /**
  * DI token for the Gemini LLM. The concrete {@link GoogleGeminiClient} talks to
  * Google's API; tests bind a fake so CI never makes a network call. The agent
@@ -42,6 +58,8 @@ export abstract class GeminiClient {
   abstract readonly model: string;
   abstract get isConfigured(): boolean;
   abstract generate(params: GeminiGenerateParams): Promise<GeminiTurn>;
+  /** Single-shot generation constrained to JSON output (generative tools). */
+  abstract generateJson(params: GeminiJsonParams): Promise<GeminiJsonResult>;
   /** Batch text → embedding vectors (used by RAG in a later task). */
   abstract embed(texts: string[]): Promise<number[][]>;
 }
@@ -124,6 +142,36 @@ export class GoogleGeminiClient extends GeminiClient {
     }
 
     return { text, toolCalls, tokens: { in: tokensIn, out: tokensOut } };
+  }
+
+  async generateJson(params: GeminiJsonParams): Promise<GeminiJsonResult> {
+    if (!this.ai) throw new Error('GEMINI_API_KEY is not configured');
+
+    const res = await this.ai.models.generateContent({
+      model: this.model,
+      contents: [{ role: 'user', parts: [{ text: params.prompt }] }],
+      config: {
+        systemInstruction: params.systemInstruction,
+        abortSignal: params.signal,
+        temperature: 0.3,
+        responseMimeType: 'application/json',
+        ...(params.responseSchema ? { responseJsonSchema: params.responseSchema } : {}),
+      },
+    });
+
+    const raw = res.text ?? '';
+    const usage = res.usageMetadata;
+    let json: unknown;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      throw new Error('Model did not return valid JSON');
+    }
+    return {
+      json,
+      raw,
+      tokens: { in: usage?.promptTokenCount ?? 0, out: usage?.candidatesTokenCount ?? 0 },
+    };
   }
 
   async embed(texts: string[]): Promise<number[][]> {

@@ -991,3 +991,186 @@ export type ChatSseEvent =
       status: AiExecutionStatus;
     }
   | { type: 'error'; code: string; message: string };
+
+// ───────────────────────────────────────────────────────────────────────────
+// AI — Generative tools (structured, propose→confirm)
+// Output schemas + prompt templates live here so both the API (validation) and
+// the web (rendering proposals) share one source of truth. Generative tools
+// NEVER assert on free prose — only on these schema-valid JSON shapes.
+// See specs/05-ai-agent.md ("Generative / analytical").
+// ───────────────────────────────────────────────────────────────────────────
+
+/** System instruction shared by every generative tool: JSON-only, grounded. */
+export const GENERATIVE_SYSTEM_PROMPT =
+  'You are the planning assistant inside a project-management product. You return ONLY JSON that ' +
+  'conforms to the provided schema — no markdown, no prose outside the JSON. Be concrete, concise, ' +
+  'and grounded strictly in the context you are given; never invent ids, names, or metrics.';
+
+// ── Proposed sprint (generateSprint → applySprintPlan) ────────────────────────
+export const proposedTaskSchema = z.object({
+  title: z.string().min(1).max(300),
+  description: z.string().max(4000).optional(),
+  priority: taskPrioritySchema.default('medium'),
+  storyPoints: z.number().int().min(0).max(100).optional(),
+});
+export type ProposedTask = z.infer<typeof proposedTaskSchema>;
+
+export const sprintPlanSchema = z.object({
+  name: z.string().min(1).max(120),
+  goal: z.string().max(2000).default(''),
+  durationDays: z.number().int().min(1).max(60).default(14),
+  tasks: z.array(proposedTaskSchema).min(1).max(50),
+});
+export type SprintPlan = z.infer<typeof sprintPlanSchema>;
+
+// ── Standup ───────────────────────────────────────────────────────────────────
+export const standupEntrySchema = z.object({
+  name: z.string(),
+  yesterday: z.array(z.string()).default([]),
+  today: z.array(z.string()).default([]),
+  blockers: z.array(z.string()).default([]),
+});
+export const standupSchema = z.object({
+  date: z.string(),
+  entries: z.array(standupEntrySchema),
+});
+export type Standup = z.infer<typeof standupSchema>;
+
+// ── Generic summary (summarizeSprint / summarizeProject) ──────────────────────
+export const summarySchema = z.object({
+  summary: z.string(),
+  highlights: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+});
+export type SummaryResult = z.infer<typeof summarySchema>;
+
+// ── Reports (project / weekly / meeting) ──────────────────────────────────────
+export const reportSchema = z.object({
+  title: z.string(),
+  summary: z.string(),
+  sections: z
+    .array(z.object({ heading: z.string(), body: z.string() }))
+    .default([]),
+});
+export type ReportResult = z.infer<typeof reportSchema>;
+
+export const weeklyReportGenSchema = z.object({
+  summary: z.string(),
+  completed: z.array(z.string()).default([]),
+  inProgress: z.array(z.string()).default([]),
+  risks: z.array(z.string()).default([]),
+  nextWeek: z.array(z.string()).default([]),
+});
+export type WeeklyReportGen = z.infer<typeof weeklyReportGenSchema>;
+
+export const meetingSummarySchema = z.object({
+  summary: z.string(),
+  decisions: z.array(z.string()).default([]),
+  actionItems: z
+    .array(z.object({ owner: z.string().optional(), task: z.string() }))
+    .default([]),
+});
+export type MeetingSummary = z.infer<typeof meetingSummarySchema>;
+
+// ── Backlog authoring (stories / acceptance criteria / subtasks / roadmap / notes)
+export const userStorySchema = z.object({
+  title: z.string(),
+  asA: z.string(),
+  iWant: z.string(),
+  soThat: z.string(),
+  acceptanceCriteria: z.array(z.string()).default([]),
+  storyPoints: z.number().int().min(0).max(100).optional(),
+});
+export const userStoriesSchema = z.object({ stories: z.array(userStorySchema).min(1).max(30) });
+export type UserStories = z.infer<typeof userStoriesSchema>;
+
+export const acceptanceCriteriaSchema = z.object({
+  criteria: z.array(z.string()).min(1).max(30),
+});
+export type AcceptanceCriteria = z.infer<typeof acceptanceCriteriaSchema>;
+
+export const subtaskPlanSchema = z.object({
+  subtasks: z
+    .array(z.object({ title: z.string().min(1).max(300), description: z.string().max(2000).optional() }))
+    .min(1)
+    .max(20),
+});
+export type SubtaskPlan = z.infer<typeof subtaskPlanSchema>;
+
+export const roadmapSchema = z.object({
+  phases: z
+    .array(
+      z.object({
+        name: z.string(),
+        objective: z.string(),
+        durationWeeks: z.number().int().min(1).max(52),
+        items: z.array(z.string()).default([]),
+      }),
+    )
+    .min(1)
+    .max(12),
+});
+export type Roadmap = z.infer<typeof roadmapSchema>;
+
+export const releaseNotesSchema = z.object({
+  version: z.string().optional(),
+  highlights: z.array(z.string()).default([]),
+  features: z.array(z.string()).default([]),
+  fixes: z.array(z.string()).default([]),
+});
+export type ReleaseNotes = z.infer<typeof releaseNotesSchema>;
+
+// ── Analytics (deterministic; not generative) ─────────────────────────────────
+export const ANALYTICS_METRICS = [
+  'overview',
+  'velocity',
+  'tasksPerUser',
+  'priorityDistribution',
+  'projectProgress',
+  'weeklyReport',
+] as const;
+export const analyticsMetricSchema = z.enum(ANALYTICS_METRICS);
+export type AnalyticsMetric = (typeof ANALYTICS_METRICS)[number];
+
+export const analyticsResultSchema = z.object({
+  metric: analyticsMetricSchema,
+  note: z.string(),
+  points: z.array(z.object({ label: z.string(), value: z.number() })),
+});
+export type AnalyticsResult = z.infer<typeof analyticsResultSchema>;
+
+/**
+ * Prompt templates for the generative tools. Each takes an already-serialized
+ * context string (assembled server-side from real data) plus the user's ask,
+ * and returns the user-turn prompt. Kept pure + colocated with the schemas.
+ */
+export const generativePrompts = {
+  generateSprint: (ctx: { backlog: string; durationDays: number; ask?: string }): string =>
+    `Plan the next sprint (~${ctx.durationDays} days) from this backlog. Pick a coherent, achievable ` +
+    `set of items, set a clear goal, and estimate story points.\n\n${ctx.ask ? `Focus: ${ctx.ask}\n\n` : ''}Backlog:\n${ctx.backlog}`,
+  generateStandup: (ctx: { activity: string; date: string }): string =>
+    `Produce a standup for ${ctx.date} from this recent activity, grouped by person. ` +
+    `Keep bullets terse.\n\nActivity:\n${ctx.activity}`,
+  summarizeSprint: (ctx: { sprint: string; tasks: string }): string =>
+    `Summarize this sprint's progress, highlights, and risks.\n\nSprint:\n${ctx.sprint}\n\nTasks:\n${ctx.tasks}`,
+  summarizeProject: (ctx: { project: string; tasks: string }): string =>
+    `Summarize the state of this project, key highlights, and risks.\n\nProject:\n${ctx.project}\n\nTasks:\n${ctx.tasks}`,
+  generateProjectReport: (ctx: { project: string; metrics: string; tasks: string }): string =>
+    `Write a stakeholder project report with a title, an executive summary, and clear sections ` +
+    `(progress, risks, next steps).\n\nProject:\n${ctx.project}\n\nMetrics:\n${ctx.metrics}\n\nTasks:\n${ctx.tasks}`,
+  generateWeeklyReport: (ctx: { period: string; data: string }): string =>
+    `Write a weekly report for ${ctx.period}: summary, what was completed, what's in progress, risks, ` +
+    `and next week's focus.\n\nData:\n${ctx.data}`,
+  generateUserStories: (ctx: { feature: string; count: number }): string =>
+    `Write ${ctx.count} well-formed user stories (As a / I want / So that) with acceptance criteria for:\n\n${ctx.feature}`,
+  generateAcceptanceCriteria: (ctx: { item: string }): string =>
+    `Write clear, testable acceptance criteria (Given/When/Then where useful) for:\n\n${ctx.item}`,
+  generateSubtasks: (ctx: { task: string; count: number }): string =>
+    `Break this task into ${ctx.count} concrete, independently-shippable subtasks:\n\n${ctx.task}`,
+  generateRoadmap: (ctx: { goals: string }): string =>
+    `Propose a phased product roadmap (name, objective, duration in weeks, key items) for these goals:\n\n${ctx.goals}`,
+  generateReleaseNotes: (ctx: { changes: string }): string =>
+    `Write release notes (highlights, features, fixes) from these completed items:\n\n${ctx.changes}`,
+  generateMeetingSummary: (ctx: { notes: string }): string =>
+    `Summarize these meeting notes into a summary, explicit decisions, and action items with owners:\n\n${ctx.notes}`,
+};

@@ -1,6 +1,8 @@
 import {
   GeminiClient,
   type GeminiGenerateParams,
+  type GeminiJsonParams,
+  type GeminiJsonResult,
   type GeminiTurn,
 } from '../infra/ai/gemini.client';
 
@@ -18,7 +20,9 @@ export interface ScriptedTurn {
 export class FakeGeminiClient extends GeminiClient {
   readonly model = 'gemini-test';
   readonly calls: GeminiGenerateParams[] = [];
+  readonly jsonCalls: GeminiJsonParams[] = [];
   private readonly queue: ScriptedTurn[] = [];
+  private readonly jsonQueue: unknown[] = [];
   private loopTurn: ScriptedTurn | null = null;
   private configured = true;
 
@@ -42,10 +46,18 @@ export class FakeGeminiClient extends GeminiClient {
     return this;
   }
 
+  /** Queue JSON objects returned in order by successive `generateJson` calls. */
+  scriptJson(...objects: unknown[]): this {
+    this.jsonQueue.push(...objects);
+    return this;
+  }
+
   /** Clears scripted turns + recorded calls (call between tests sharing a module). */
   reset(): void {
     this.queue.length = 0;
     this.calls.length = 0;
+    this.jsonQueue.length = 0;
+    this.jsonCalls.length = 0;
     this.loopTurn = null;
   }
 
@@ -62,6 +74,12 @@ export class FakeGeminiClient extends GeminiClient {
       args: call.args,
     }));
     return { text: turn.text ?? '', toolCalls, tokens: turn.tokens ?? { in: 10, out: 5 } };
+  }
+
+  async generateJson(params: GeminiJsonParams): Promise<GeminiJsonResult> {
+    this.jsonCalls.push(params);
+    const json = this.jsonQueue.shift() ?? {};
+    return { json, raw: JSON.stringify(json), tokens: { in: 20, out: 40 } };
   }
 
   async embed(texts: string[]): Promise<number[][]> {

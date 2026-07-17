@@ -66,6 +66,7 @@ import { createTaskTools } from '../modules/ai/tools/task-tools';
 import { createProjectTools } from '../modules/ai/tools/project-tools';
 import { createSprintTools } from '../modules/ai/tools/sprint-tools';
 import { createCollabTools } from '../modules/ai/tools/collab-tools';
+import { createGenerativeTools } from '../modules/ai/tools/generative-tools';
 import { ChatSession, ChatSessionSchema } from '../modules/ai/schemas/chat-session.schema';
 import { ChatMessage, ChatMessageSchema } from '../modules/ai/schemas/chat-message.schema';
 import { AiExecution, AiExecutionSchema } from '../modules/ai/schemas/ai-execution.schema';
@@ -245,6 +246,8 @@ export async function createTestContext(): Promise<TestContext | null> {
             sprints: SprintsService,
             comments: CommentsService,
             labels: LabelsService,
+            dashboard: DashboardService,
+            gemini: GeminiClient,
             resolver: ReferenceResolver,
           ) => [
             createWhoAmITool(users),
@@ -252,6 +255,7 @@ export async function createTestContext(): Promise<TestContext | null> {
             ...createProjectTools(projects, resolver),
             ...createSprintTools(sprints, tasks, resolver),
             ...createCollabTools(comments, labels, resolver),
+            ...createGenerativeTools({ gemini, tasks, projects, sprints, dashboard, resolver }),
           ],
           inject: [
             UsersService,
@@ -260,6 +264,8 @@ export async function createTestContext(): Promise<TestContext | null> {
             SprintsService,
             CommentsService,
             LabelsService,
+            DashboardService,
+            GeminiClient,
             ReferenceResolver,
           ],
         },

@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 import type { Permission, Role } from '@ai-projectos/shared';
 
 /** The acting identity for a tool run — mirrors the RBAC context of a UI request. */
@@ -31,10 +31,14 @@ export interface AiTool<I = unknown, O = unknown> {
   requiredPermission: Permission;
   /** Destructive tools require explicit user confirmation before committing. */
   destructive?: boolean;
-  /** Validated (Zod) before the handler; also converted to a Gemini declaration. */
-  inputSchema: ZodType<I>;
+  /**
+   * Validated (Zod) before the handler; also converted to a Gemini declaration.
+   * The Zod *input* type is left open (`unknown`) so schemas that use `.default()`
+   * (whose parsed output has required fields the raw input omits) still fit.
+   */
+  inputSchema: ZodType<I, ZodTypeDef, unknown>;
   /** Validated after the handler so results are safe to render as UI. */
-  outputSchema: ZodType<O>;
+  outputSchema: ZodType<O, ZodTypeDef, unknown>;
   handler: (input: I, ctx: ToolContext) => Promise<O>;
 }
 

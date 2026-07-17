@@ -147,7 +147,7 @@ The [`../history/`](../history/) folder is the durable memory of the build.
 | TASK-15 | Deployment & observability | Human | ✅ done (2026-07-17, multi-stage Docker + migration runner verified + OTel/Sentry/Better Stack wiring + Vercel/Railway deploy workflows; typecheck/lint/build green) |
 | TASK-16 | AI foundation | AI | ✅ done (2026-07-17, Gemini client + MCP tool registry + LangGraph agent w/ guardrails + chat/SSE + audited AIExecutions + whoAmI tool; 144 API tests, coverage-gated; Gemini mocked in CI, live smoke verified) |
 | TASK-17 | AI action/CRUD tools | AI | ✅ done (2026-07-18, 17 audited tools wrapping task/project/sprint/comment/label services + name/key reference resolver w/ disambiguation + confirmation gating for destructive tools + `source:'ai'` attribution; 160 API tests incl. 8-case action-tools integration suite; typecheck/lint/build green) |
-| TASK-18 | AI generative tools | AI | ☐ |
+| TASK-18 | AI generative tools | AI | ✅ done (2026-07-18, 13 structured-JSON generative tools + deterministic `analytics` over TASK-12 aggregates; prompts+schemas in shared; JSON-mode Gemini w/ re-validation; `generateSprint`→`applySprintPlan` propose→confirm→commit audited `source:'ai'`; 157 API tests incl. 5-case generative integration suite; typecheck/lint/build green) |
 | TASK-19 | AI chat frontend | AI | ☐ |
 | TASK-20 | RAG ingestion (Qdrant) | AI | ☐ |
 | TASK-21 | RAG features + memory | AI | ☐ |

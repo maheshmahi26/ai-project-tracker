@@ -111,6 +111,9 @@ describe('AgentRunner', () => {
       generate(_params: GeminiGenerateParams): Promise<GeminiTurn> {
         return Promise.reject(new Error('model exploded'));
       }
+      generateJson(): Promise<never> {
+        return Promise.reject(new Error('model exploded'));
+      }
       embed(): Promise<number[][]> {
         return Promise.resolve([]);
       }

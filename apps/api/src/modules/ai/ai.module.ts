@@ -15,6 +15,9 @@ import { CommentsModule } from '../comments/comments.module';
 import { CommentsService } from '../comments/comments.service';
 import { LabelsModule } from '../labels/labels.module';
 import { LabelsService } from '../labels/labels.service';
+import { DashboardModule } from '../dashboard/dashboard.module';
+import { DashboardService } from '../dashboard/dashboard.service';
+import { GeminiClient } from '../../infra/ai/gemini.client';
 import { AiController } from './ai.controller';
 import { ChatService } from './chat.service';
 import { AgentService } from './agent.service';
@@ -27,6 +30,7 @@ import { createTaskTools } from './tools/task-tools';
 import { createProjectTools } from './tools/project-tools';
 import { createSprintTools } from './tools/sprint-tools';
 import { createCollabTools } from './tools/collab-tools';
+import { createGenerativeTools } from './tools/generative-tools';
 import { ChatSession, ChatSessionSchema } from './schemas/chat-session.schema';
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { AiExecution, AiExecutionSchema } from './schemas/ai-execution.schema';
@@ -54,6 +58,7 @@ import {
     SprintsModule,
     CommentsModule,
     LabelsModule,
+    DashboardModule,
     MongooseModule.forFeature([
       { name: ChatSession.name, schema: ChatSessionSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
@@ -79,6 +84,8 @@ import {
         sprints: SprintsService,
         comments: CommentsService,
         labels: LabelsService,
+        dashboard: DashboardService,
+        gemini: GeminiClient,
         resolver: ReferenceResolver,
       ) => [
         createWhoAmITool(users),
@@ -86,6 +93,7 @@ import {
         ...createProjectTools(projects, resolver),
         ...createSprintTools(sprints, tasks, resolver),
         ...createCollabTools(comments, labels, resolver),
+        ...createGenerativeTools({ gemini, tasks, projects, sprints, dashboard, resolver }),
       ],
       inject: [
         UsersService,
@@ -94,6 +102,8 @@ import {
         SprintsService,
         CommentsService,
         LabelsService,
+        DashboardService,
+        GeminiClient,
         ReferenceResolver,
       ],
     },
