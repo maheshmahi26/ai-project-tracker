@@ -10,6 +10,7 @@ export function toPublicUser(user: UserLean): PublicUser {
     avatarUrl: user.avatarUrl ?? null,
     provider: user.provider,
     status: user.status,
+    mustChangePassword: user.mustChangePassword ?? false,
     defaultOrgId: user.defaultOrgId ? user.defaultOrgId.toString() : null,
     createdAt: user.createdAt.toISOString(),
   };

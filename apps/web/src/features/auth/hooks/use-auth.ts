@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   AuthResult,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -45,6 +46,14 @@ export function useForgotPassword() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: (input: ResetPasswordInput) => authApi.resetPassword(input),
+  });
+}
+
+export function useChangePassword() {
+  const adopt = useAdoptSession();
+  return useMutation({
+    mutationFn: (input: ChangePasswordInput) => authApi.changePassword(input),
+    onSuccess: adopt,
   });
 }
 

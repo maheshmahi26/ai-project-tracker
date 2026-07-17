@@ -12,8 +12,11 @@ export type MembershipLean = Membership & {
 
 export abstract class MembershipsRepository {
   abstract findActive(orgId: string, userId: string): Promise<MembershipLean | null>;
+  abstract findByOrgAndUser(orgId: string, userId: string): Promise<MembershipLean | null>;
   abstract listByUser(userId: string): Promise<MembershipLean[]>;
   abstract listByOrg(orgId: string): Promise<MembershipLean[]>;
+  abstract listByOrgPaged(orgId: string, skip: number, limit: number): Promise<MembershipLean[]>;
+  abstract countByOrg(orgId: string): Promise<number>;
   abstract create(data: Partial<Membership>, session?: ClientSession): Promise<MembershipLean>;
   abstract updateRole(orgId: string, userId: string, role: Role): Promise<MembershipLean | null>;
   abstract remove(orgId: string, userId: string): Promise<boolean>;
@@ -33,6 +36,13 @@ export class MongoMembershipsRepository extends MembershipsRepository {
     return this.model.findOne({ orgId, userId, status: 'active' }).lean<MembershipLean>().exec();
   }
 
+  findByOrgAndUser(orgId: string, userId: string): Promise<MembershipLean | null> {
+    if (!Types.ObjectId.isValid(orgId) || !Types.ObjectId.isValid(userId)) {
+      return Promise.resolve(null);
+    }
+    return this.model.findOne({ orgId, userId }).lean<MembershipLean>().exec();
+  }
+
   listByUser(userId: string): Promise<MembershipLean[]> {
     if (!Types.ObjectId.isValid(userId)) return Promise.resolve([]);
     return this.model.find({ userId, status: 'active' }).lean<MembershipLean[]>().exec();
@@ -41,6 +51,22 @@ export class MongoMembershipsRepository extends MembershipsRepository {
   listByOrg(orgId: string): Promise<MembershipLean[]> {
     if (!Types.ObjectId.isValid(orgId)) return Promise.resolve([]);
     return this.model.find({ orgId }).lean<MembershipLean[]>().exec();
+  }
+
+  listByOrgPaged(orgId: string, skip: number, limit: number): Promise<MembershipLean[]> {
+    if (!Types.ObjectId.isValid(orgId)) return Promise.resolve([]);
+    return this.model
+      .find({ orgId })
+      .sort({ createdAt: 1 })
+      .skip(skip)
+      .limit(limit)
+      .lean<MembershipLean[]>()
+      .exec();
+  }
+
+  countByOrg(orgId: string): Promise<number> {
+    if (!Types.ObjectId.isValid(orgId)) return Promise.resolve(0);
+    return this.model.countDocuments({ orgId }).exec();
   }
 
   async create(data: Partial<Membership>, session?: ClientSession): Promise<MembershipLean> {

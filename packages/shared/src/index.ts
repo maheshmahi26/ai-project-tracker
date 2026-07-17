@@ -140,6 +140,12 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: passwordSchema,
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
 // ───────────────────────────────────────────────────────────────────────────
 // Organization / membership DTOs
 // ───────────────────────────────────────────────────────────────────────────
@@ -175,6 +181,26 @@ export const inviteMemberSchema = z.object({
 });
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 
+/** Roles an admin can assign when creating a user (admin is intentionally excluded). */
+export const nonAdminRoleSchema = z.enum(['manager', 'developer', 'viewer']);
+export type NonAdminRole = z.infer<typeof nonAdminRoleSchema>;
+
+/** Admin creates a user directly with a temporary, admin-typed password. */
+export const createMemberSchema = z.object({
+  email: emailSchema,
+  name: z.string().trim().min(1).max(120),
+  password: passwordSchema,
+  role: nonAdminRoleSchema,
+});
+export type CreateMemberInput = z.infer<typeof createMemberSchema>;
+
+/** Page-based query for the admin members table. */
+export const memberListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+export type MemberListQuery = z.infer<typeof memberListQuerySchema>;
+
 export const changeRoleSchema = z.object({ role: roleSchema });
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
 
@@ -189,6 +215,8 @@ export interface PublicUser {
   avatarUrl?: string | null;
   provider: 'local' | 'google';
   status: 'active' | 'invited' | 'disabled';
+  /** True when the user must set a new password before using the app. */
+  mustChangePassword: boolean;
   defaultOrgId?: string | null;
   createdAt: string;
 }
@@ -226,6 +254,13 @@ export interface MembershipDTO {
   status: 'active' | 'invited';
   user?: PublicUser;
   joinedAt?: string | null;
+}
+
+export interface PaginatedMembers {
+  items: MembershipDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 // ───────────────────────────────────────────────────────────────────────────

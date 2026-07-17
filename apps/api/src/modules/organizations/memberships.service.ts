@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { MembershipDTO, Role } from '@ai-projectos/shared';
+import type { MembershipDTO, PaginatedMembers, Role } from '@ai-projectos/shared';
 import { AppException } from '../../common/errors/app-exception';
 import { UsersRepository } from '../users/users.repository';
 import { MembershipsRepository, type MembershipLean } from './memberships.repository';
@@ -36,5 +36,22 @@ export class MembershipsService {
     const users = await this.users.findByIds(members.map((m) => m.userId.toString()));
     const byId = new Map(users.map((u) => [u._id.toString(), u]));
     return members.map((m) => toMembershipDTO(m, byId.get(m.userId.toString()) ?? null));
+  }
+
+  async listOrgMembersPaged(
+    orgId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<PaginatedMembers> {
+    const total = await this.memberships.countByOrg(orgId);
+    const members = await this.memberships.listByOrgPaged(orgId, (page - 1) * pageSize, pageSize);
+    const users = await this.users.findByIds(members.map((m) => m.userId.toString()));
+    const byId = new Map(users.map((u) => [u._id.toString(), u]));
+    return {
+      items: members.map((m) => toMembershipDTO(m, byId.get(m.userId.toString()) ?? null)),
+      total,
+      page,
+      pageSize,
+    };
   }
 }

@@ -4,6 +4,7 @@ import { AppShell } from './layouts/app-shell';
 import { AuthLayout } from './layouts/auth-layout';
 import { RequireAuth } from './guards/require-auth';
 import { RequireOrg } from './guards/require-org';
+import { RequirePasswordCurrent } from './guards/require-password-current';
 import { RedirectIfAuthed } from './guards/redirect-if-authed';
 import { RouteErrorBoundary } from '@/components/error-boundary/route-error-boundary';
 import NotFoundPage from '@/features/misc/not-found-page';
@@ -22,6 +23,7 @@ const LoginPage = lazy(() => import('@/features/auth/routes/login-page'));
 const RegisterPage = lazy(() => import('@/features/auth/routes/register-page'));
 const ForgotPasswordPage = lazy(() => import('@/features/auth/routes/forgot-password-page'));
 const ResetPasswordPage = lazy(() => import('@/features/auth/routes/reset-password-page'));
+const ChangePasswordPage = lazy(() => import('@/features/auth/routes/change-password-page'));
 const AuthCallbackPage = lazy(() => import('@/features/auth/routes/auth-callback-page'));
 
 export const router = createBrowserRouter([
@@ -30,21 +32,29 @@ export const router = createBrowserRouter([
     element: <RequireAuth />,
     errorElement: <RouteErrorBoundary />,
     children: [
-      // Authenticated but org-context not required (no shell chrome).
-      { path: 'onboarding', element: <OnboardingPage /> },
+      // Reachable without a current password so temp-password users can reset.
+      { path: 'change-password', element: <ChangePasswordPage /> },
       {
-        // Requires an active organization, then renders the app shell.
-        element: <RequireOrg />,
+        // Force a password change before anything else when required.
+        element: <RequirePasswordCurrent />,
         children: [
+          // Authenticated but org-context not required (no shell chrome).
+          { path: 'onboarding', element: <OnboardingPage /> },
           {
-            element: <AppShell />,
+            // Requires an active organization, then renders the app shell.
+            element: <RequireOrg />,
             children: [
-              { index: true, element: <DashboardPage /> },
-              { path: 'projects', element: <ProjectsPage /> },
-              { path: 'projects/:projectId', element: <ProjectDetailPage /> },
-              { path: 'tasks', element: <TasksPage /> },
-              { path: 'tasks/:taskId', element: <TaskDetailPage /> },
-              { path: 'settings', element: <SettingsPage /> },
+              {
+                element: <AppShell />,
+                children: [
+                  { index: true, element: <DashboardPage /> },
+                  { path: 'projects', element: <ProjectsPage /> },
+                  { path: 'projects/:projectId', element: <ProjectDetailPage /> },
+                  { path: 'tasks', element: <TasksPage /> },
+                  { path: 'tasks/:taskId', element: <TaskDetailPage /> },
+                  { path: 'settings', element: <SettingsPage /> },
+                ],
+              },
             ],
           },
         ],

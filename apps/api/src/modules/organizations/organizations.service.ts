@@ -3,15 +3,18 @@ import { InjectConnection } from '@nestjs/mongoose';
 import { ClientSession, Connection, Types } from 'mongoose';
 import {
   can,
+  type CreateMemberInput,
   type CreateOrgInput,
   type MembershipDTO,
   type OrganizationDTO,
+  type PaginatedMembers,
   type Role,
   type UpdateOrgInput,
 } from '@ai-projectos/shared';
 import { AppException } from '../../common/errors/app-exception';
 import { AuditService } from '../audit/audit.service';
 import type { RequestMeta } from '../auth/auth.service';
+import { PasswordService } from '../auth/password.service';
 import { UsersRepository } from '../users/users.repository';
 import { MembershipsRepository } from './memberships.repository';
 import { MembershipsService } from './memberships.service';
@@ -27,6 +30,7 @@ export class OrganizationsService {
     private readonly memberships: MembershipsRepository,
     private readonly membershipsService: MembershipsService,
     private readonly users: UsersRepository,
+    private readonly passwords: PasswordService,
     private readonly audit: AuditService,
     @InjectConnection() private readonly connection: Connection,
   ) {}
@@ -165,6 +169,103 @@ export class OrganizationsService {
     return this.membershipsService.listOrgMembers(orgId);
   }
 
+  async listMembersPaged(
+    orgId: string,
+    userId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<PaginatedMembers> {
+    await this.membershipsService.requireActive(orgId, userId);
+    return this.membershipsService.listOrgMembersPaged(orgId, page, pageSize);
+  }
+
+  async createMember(
+    orgId: string,
+    actingUserId: string,
+    input: CreateMemberInput,
+    meta: RequestMeta,
+  ): Promise<MembershipDTO> {
+    await this.requirePermission(orgId, actingUserId, 'manage:users');
+
+    // Defense in depth: the schema already restricts this, but never let an admin
+    // be minted through this path.
+    if ((input.role as Role) === 'admin') {
+      throw AppException.businessRule('Admins cannot be created here');
+    }
+
+    const existing = await this.users.findByEmail(input.email);
+    if (existing) throw AppException.conflict('An account with this email already exists');
+
+    const passwordHash = await this.passwords.hash(input.password);
+    const user = await this.users.create({
+      email: input.email,
+      name: input.name,
+      passwordHash,
+      provider: 'local',
+      status: 'active',
+      mustChangePassword: true,
+    });
+
+    const membership = await this.memberships.create({
+      orgId: new Types.ObjectId(orgId),
+      userId: user._id,
+      role: input.role,
+      status: 'active',
+      invitedBy: new Types.ObjectId(actingUserId),
+      joinedAt: new Date(),
+    });
+
+    await this.audit.record({
+      action: 'org.member.create',
+      actorId: actingUserId,
+      orgId,
+      entity: { type: 'user', id: user._id.toString() },
+      after: { role: input.role },
+      ...meta,
+    });
+    return toMembershipDTO(membership, user);
+  }
+
+  async setUserBlocked(
+    orgId: string,
+    actingUserId: string,
+    targetUserId: string,
+    blocked: boolean,
+    meta: RequestMeta,
+  ): Promise<MembershipDTO> {
+    await this.requirePermission(orgId, actingUserId, 'manage:users');
+    if (actingUserId === targetUserId) {
+      throw AppException.businessRule('You cannot block yourself');
+    }
+
+    const target = await this.memberships.findByOrgAndUser(orgId, targetUserId);
+    if (!target) throw AppException.notFound('Member not found');
+
+    const org = await this.orgs.findById(orgId);
+    if (blocked && org && org.ownerId.toString() === targetUserId) {
+      throw AppException.businessRule('The organization owner cannot be blocked');
+    }
+    if (blocked && target.role === 'admin') {
+      await this.assertNotLastAdmin(orgId);
+    }
+
+    const user = await this.users.updateById(targetUserId, {
+      $set: { status: blocked ? 'disabled' : 'active' },
+      // Blocking must also end any active session.
+      ...(blocked ? { $unset: { refreshTokenHash: '' } } : {}),
+    });
+    if (!user) throw AppException.notFound('Member not found');
+
+    await this.audit.record({
+      action: blocked ? 'org.member.block' : 'org.member.unblock',
+      actorId: actingUserId,
+      orgId,
+      entity: { type: 'user', id: targetUserId },
+      ...meta,
+    });
+    return toMembershipDTO(target, user);
+  }
+
   async inviteMember(
     orgId: string,
     actingUserId: string,
@@ -244,7 +345,7 @@ export class OrganizationsService {
     meta: RequestMeta,
   ): Promise<void> {
     await this.requirePermission(orgId, actingUserId, 'manage:users');
-    const target = await this.memberships.findActive(orgId, targetUserId);
+    const target = await this.memberships.findByOrgAndUser(orgId, targetUserId);
     if (!target) throw AppException.notFound('Member not found');
 
     const org = await this.orgs.findById(orgId);

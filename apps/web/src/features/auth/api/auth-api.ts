@@ -1,5 +1,6 @@
 import type {
   AuthResult,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   PublicUser,
@@ -63,6 +64,9 @@ export const authApi = {
 
   resetPassword: (input: ResetPasswordInput): Promise<{ success: true }> =>
     apiClient.post<{ success: true }>('/auth/reset-password', input),
+
+  changePassword: (input: ChangePasswordInput): Promise<AuthResult> =>
+    apiClient.post<AuthResult>('/auth/change-password', input),
 
   /** Full-page redirect entrypoint for Google OAuth. */
   googleLoginUrl: (): string => `${API_BASE}/auth/google`,

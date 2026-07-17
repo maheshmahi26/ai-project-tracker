@@ -12,12 +12,14 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import {
+  changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
   resetPasswordSchema,
   type AuthResult,
+  type ChangePasswordInput,
   type ForgotPasswordInput,
   type PublicUser,
   type RefreshInput,
@@ -126,6 +128,20 @@ export class AuthController {
   ): Promise<{ success: true }> {
     await this.auth.resetPassword(body.token, body.password, this.meta(req));
     return { success: true };
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change the current password (e.g. forced first-login reset)' })
+  async changePassword(
+    @Body(new ZodValidationPipe(changePasswordSchema)) body: ChangePasswordInput,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResult> {
+    const result = await this.auth.changePassword(user.userId, body, this.meta(req));
+    this.setRefreshCookie(res, result.tokens.refreshToken);
+    return result;
   }
 
   @Get('me')

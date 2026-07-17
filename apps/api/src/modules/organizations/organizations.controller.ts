@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,14 +16,19 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import {
   changeRoleSchema,
+  createMemberSchema,
   createOrgSchema,
   inviteMemberSchema,
+  memberListQuerySchema,
   updateOrgSchema,
   type ChangeRoleInput,
+  type CreateMemberInput,
   type CreateOrgInput,
   type InviteMemberInput,
+  type MemberListQuery,
   type MembershipDTO,
   type OrganizationDTO,
+  type PaginatedMembers,
   type UpdateOrgInput,
 } from '@ai-projectos/shared';
 import { getRequestId } from '../../common/request/request-context';
@@ -103,6 +109,30 @@ export class OrganizationsController {
     return this.orgs.listMembers(id, user.userId);
   }
 
+  @Get(':id/members/page')
+  @UseGuards(OrgGuard)
+  @ApiOperation({ summary: 'List organization members (paginated)' })
+  listMembersPage(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(memberListQuerySchema)) query: MemberListQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PaginatedMembers> {
+    return this.orgs.listMembersPaged(id, user.userId, query.page, query.pageSize);
+  }
+
+  @Post(':id/users')
+  @UseGuards(OrgGuard, PermissionsGuard)
+  @Permissions('manage:users')
+  @ApiOperation({ summary: 'Create a user with a temporary password (admin)' })
+  createMember(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(createMemberSchema)) body: CreateMemberInput,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+  ): Promise<MembershipDTO> {
+    return this.orgs.createMember(id, user.userId, body, this.meta(req));
+  }
+
   @Post(':id/members')
   @UseGuards(OrgGuard, PermissionsGuard)
   @Permissions('manage:users')
@@ -114,6 +144,34 @@ export class OrganizationsController {
     @Req() req: Request,
   ): Promise<MembershipDTO> {
     return this.orgs.inviteMember(id, user.userId, body, this.meta(req));
+  }
+
+  @Post(':id/members/:userId/block')
+  @UseGuards(OrgGuard, PermissionsGuard)
+  @Permissions('manage:users')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Block a member — disables their account (admin)' })
+  blockMember(
+    @Param('id') id: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+  ): Promise<MembershipDTO> {
+    return this.orgs.setUserBlocked(id, user.userId, targetUserId, true, this.meta(req));
+  }
+
+  @Post(':id/members/:userId/unblock')
+  @UseGuards(OrgGuard, PermissionsGuard)
+  @Permissions('manage:users')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unblock a member — re-enables their account (admin)' })
+  unblockMember(
+    @Param('id') id: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+  ): Promise<MembershipDTO> {
+    return this.orgs.setUserBlocked(id, user.userId, targetUserId, false, this.meta(req));
   }
 
   @Patch(':id/members/:userId')

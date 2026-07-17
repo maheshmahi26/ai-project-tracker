@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  CreateMemberInput,
   CreateOrgInput,
   InviteMemberInput,
   OrganizationDTO,
@@ -69,5 +70,57 @@ export function useInviteMember(orgId: string | undefined) {
     onSuccess: () => {
       if (orgId) void queryClient.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) });
     },
+  });
+}
+
+export function useOrgMembersPage(orgId: string | undefined, page: number, pageSize: number) {
+  return useQuery({
+    queryKey: orgId
+      ? queryKeys.orgs.membersPage(orgId, page, pageSize)
+      : ['orgs', 'members', 'page', 'none'],
+    queryFn: () => orgsApi.listMembersPage(orgId as string, page, pageSize),
+    enabled: Boolean(orgId),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Invalidate every members query (list + paginated pages) for an org. */
+function useInvalidateMembers(orgId: string | undefined) {
+  const queryClient = useQueryClient();
+  return () => {
+    if (!orgId) return;
+    void queryClient.invalidateQueries({ queryKey: queryKeys.orgs.members(orgId) });
+  };
+}
+
+export function useCreateUser(orgId: string | undefined) {
+  const invalidate = useInvalidateMembers(orgId);
+  return useMutation({
+    mutationFn: (input: CreateMemberInput) => orgsApi.createUser(orgId as string, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useBlockMember(orgId: string | undefined) {
+  const invalidate = useInvalidateMembers(orgId);
+  return useMutation({
+    mutationFn: (userId: string) => orgsApi.blockMember(orgId as string, userId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUnblockMember(orgId: string | undefined) {
+  const invalidate = useInvalidateMembers(orgId);
+  return useMutation({
+    mutationFn: (userId: string) => orgsApi.unblockMember(orgId as string, userId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRemoveMember(orgId: string | undefined) {
+  const invalidate = useInvalidateMembers(orgId);
+  return useMutation({
+    mutationFn: (userId: string) => orgsApi.removeMember(orgId as string, userId),
+    onSuccess: invalidate,
   });
 }

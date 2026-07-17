@@ -60,6 +60,9 @@ export class User {
 
   @Prop({ type: String, required: true, enum: ['active', 'invited', 'disabled'], default: 'active' })
   status!: 'active' | 'invited' | 'disabled';
+
+  @Prop({ type: Boolean, default: false })
+  mustChangePassword!: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

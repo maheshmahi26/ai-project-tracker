@@ -146,6 +146,36 @@ export class AuthService {
     });
   }
 
+  async changePassword(
+    userId: string,
+    input: { currentPassword: string; newPassword: string },
+    meta: RequestMeta,
+  ): Promise<AuthResult> {
+    const user = await this.users.findByIdWithSecrets(userId);
+    if (!user) throw AppException.unauthenticated('Session no longer valid');
+
+    const ok = await this.passwords.verify(user.passwordHash, input.currentPassword);
+    if (!ok) throw AppException.unauthenticated('Current password is incorrect');
+
+    const passwordHash = await this.passwords.hash(input.newPassword);
+    await this.users.updateById(userId, {
+      $set: { passwordHash, mustChangePassword: false },
+    });
+
+    // Re-fetch so the issued session reflects the cleared flag.
+    const updated = await this.users.findById(userId);
+    if (!updated) throw AppException.unauthenticated('Session no longer valid');
+
+    const result = await this.issueAndPersist(updated);
+    await this.audit.record({
+      action: 'auth.change_password',
+      actorId: userId,
+      source: 'ui',
+      ...meta,
+    });
+    return result;
+  }
+
   async resetPassword(token: string, newPassword: string, meta: RequestMeta): Promise<void> {
     const userId = token.split('.')[0] ?? '';
     const user = await this.users.findByIdWithSecrets(userId);
