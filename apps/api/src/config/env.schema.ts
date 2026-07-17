@@ -59,9 +59,20 @@ export const envSchema = z.object({
   MAIL_FROM: z.string().default('no-reply@ai-projectos.local'),
   SMTP_URL: z.string().optional(),
 
-  // AI (added in the AI phase; optional until then)
+  // AI (added in the AI phase; optional until then).
+  // `gemini-2.5-flash` / `text-embedding-004` are no longer offered to new API
+  // keys — use the forward-compatible aliases below.
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_MODEL: z.string().default('gemini-flash-latest'),
+  GEMINI_EMBED_MODEL: z.string().default('gemini-embedding-001'),
+  // Embedding output dimensionality (Matryoshka). Must match the Qdrant
+  // collection size bootstrapped by the migration runner.
+  GEMINI_EMBED_DIM: z.coerce.number().int().min(128).max(3072).default(768),
+  // Agent guardrails (defense against runaway loops / cost).
+  AI_MAX_ITERATIONS: z.coerce.number().int().min(1).max(20).default(6),
+  AI_TOKEN_BUDGET: z.coerce.number().int().min(1000).default(24000),
+  AI_NODE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(45000),
+  AI_RUN_TIMEOUT_MS: z.coerce.number().int().min(1000).default(120000),
 
   // Observability (optional locally)
   SENTRY_DSN: z.string().optional(),

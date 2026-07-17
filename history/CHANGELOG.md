@@ -4,6 +4,7 @@ Each completed task adds a row at the **top**. Keep it one line; details go in `
 
 | Date | Task | Title | Status | Agent / chat | Entry |
 |------|------|-------|--------|--------------|-------|
+| 2026-07-17 | TASK-16 | AI foundation (Gemini client, MCP-style tool registry + Zod→Gemini converter, LangGraph agent with guardrails, chat sessions/messages, SSE streaming, audited AIExecutions, whoAmI sample tool) | ✅ done (144 API tests @87% lines/92% funcs, coverage-gated; Gemini mocked in CI; live key/model/function-calling/embeddings smoke-verified) | AI foundation chat | [TASK-16.md](./TASK-16.md) |
 | 2026-07-17 | TASK-15 | Deployment & observability (multi-stage Docker api/worker+web, idempotent migration runner, OTel+Sentry+Better Stack wiring, Vercel/Railway deploy workflows) | ✅ done (typecheck/lint/build + migration runner verified; images/deploys run in CI) | deployment & observability chat | [TASK-15.md](./TASK-15.md) |
 | 2026-07-17 | TASK-14 | Testing hardening (admin user-mgmt integration tests, test factories, v8 coverage gates, CI + nightly E2E workflows, Playwright journeys) | ✅ done (API 119 tests @86% lines/92% funcs + web 45 tests, both coverage-gated; typecheck/lint green) | testing hardening chat | [TASK-14.md](./TASK-14.md) |
 | 2026-07-16 | TASK-13 | Dashboard & reports frontend (6 lazy Recharts widgets, project filter via URL, weekly report, RBAC-gated CSV export) | ✅ done (typecheck/lint/45 web tests + build) | dashboard frontend chat | [TASK-13.md](./TASK-13.md) |

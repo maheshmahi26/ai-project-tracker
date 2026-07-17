@@ -852,3 +852,142 @@ export interface WeeklyReportDTO {
   activeSprints: number;
   topContributors: Array<{ assigneeId: string; done: number }>;
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// AI — Chat sessions, messages, tool registry, agent executions, SSE events
+// (see specs/05-ai-agent.md and specs/03-database-schema.md §12–16)
+// ───────────────────────────────────────────────────────────────────────────
+
+export const createChatSessionSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  projectId: objectIdSchema.optional(),
+});
+export type CreateChatSessionInput = z.infer<typeof createChatSessionSchema>;
+
+export const updateChatSessionSchema = z
+  .object({ title: z.string().trim().min(1).max(200) })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
+export type UpdateChatSessionInput = z.infer<typeof updateChatSessionSchema>;
+
+export const listChatSessionsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+});
+export type ListChatSessionsQuery = z.infer<typeof listChatSessionsQuerySchema>;
+
+export const listChatMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  cursor: z.string().optional(),
+});
+export type ListChatMessagesQuery = z.infer<typeof listChatMessagesQuerySchema>;
+
+/** A user turn. The agent streams the reply back over SSE. */
+export const sendChatMessageSchema = z.object({
+  content: z.string().trim().min(1).max(4000),
+});
+export type SendChatMessageInput = z.infer<typeof sendChatMessageSchema>;
+
+export const CHAT_MESSAGE_ROLES = ['user', 'assistant', 'tool', 'system'] as const;
+export type ChatMessageRole = (typeof CHAT_MESSAGE_ROLES)[number];
+
+export interface ChatSessionDTO {
+  id: string;
+  orgId: string;
+  userId: string;
+  title: string;
+  projectId?: string | null;
+  lastMessageAt?: string | null;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatToolCallDTO {
+  callId: string;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface ChatToolResultDTO {
+  callId: string;
+  ok: boolean;
+  data?: unknown;
+  error?: { code: string; message: string } | null;
+}
+
+export interface ChatMessageDTO {
+  id: string;
+  orgId: string;
+  sessionId: string;
+  userId: string;
+  role: ChatMessageRole;
+  content: string;
+  toolCalls?: ChatToolCallDTO[];
+  toolResults?: ChatToolResultDTO[];
+  tokens?: { in: number; out: number } | null;
+  createdAt: string;
+}
+
+/** Registry introspection: what the agent (and UI) can see about a tool. */
+export interface AiToolInfoDTO {
+  name: string;
+  description: string;
+  requiredPermission: Permission;
+  /** JSON-schema-ish description of the accepted arguments. */
+  inputSchema: Record<string, unknown>;
+  /** Destructive tools require an explicit user confirmation before commit. */
+  destructive: boolean;
+}
+
+export const AI_EXECUTION_STATUSES = ['success', 'partial', 'failed'] as const;
+export type AiExecutionStatus = (typeof AI_EXECUTION_STATUSES)[number];
+
+export interface AiExecutionToolCallDTO {
+  name: string;
+  args: Record<string, unknown>;
+  ok: boolean;
+  ms: number;
+  error?: string | null;
+}
+
+export interface AiExecutionDTO {
+  id: string;
+  orgId: string;
+  userId: string;
+  sessionId?: string | null;
+  messageId?: string | null;
+  prompt: string;
+  model: string;
+  status: AiExecutionStatus;
+  /** Summarized LangGraph node trace (e.g. "ingest→reason→act→reason→respond"). */
+  graphState: string;
+  toolCalls: AiExecutionToolCallDTO[];
+  latencyMs: number;
+  tokens: { in: number; out: number };
+  iterations: number;
+  createdAt: string;
+}
+
+/**
+ * Server-Sent Events emitted by `POST /ai/chat/sessions/:id/messages`.
+ * Discriminated union on `type`; each is sent as its own SSE `event:`/`data:`.
+ */
+export type ChatSseEvent =
+  | { type: 'token'; delta: string }
+  | { type: 'tool_call'; callId: string; name: string; args: Record<string, unknown> }
+  | {
+      type: 'tool_result';
+      callId: string;
+      name: string;
+      ok: boolean;
+      data?: unknown;
+      error?: { code: string; message: string } | null;
+    }
+  | {
+      type: 'done';
+      messageId: string;
+      executionId: string;
+      status: AiExecutionStatus;
+    }
+  | { type: 'error'; code: string; message: string };

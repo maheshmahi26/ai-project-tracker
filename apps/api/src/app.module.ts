@@ -32,6 +32,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { UsersModule } from './modules/users/users.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { UsersModule } from './modules/users/users.module';
     FilesModule,
     TimelineModule,
     DashboardModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

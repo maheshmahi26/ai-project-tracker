@@ -52,6 +52,30 @@ import { NotificationsListener } from '../modules/notifications/notifications.li
 import { DashboardService } from '../modules/dashboard/dashboard.service';
 import { DashboardRepository } from '../modules/dashboard/dashboard.repository';
 import { DashboardCache } from '../modules/dashboard/dashboard.cache';
+import { UsersService } from '../modules/users/users.service';
+import { GeminiClient } from '../infra/ai/gemini.client';
+import { FakeGeminiClient } from './fake-gemini';
+import { ChatService } from '../modules/ai/chat.service';
+import { AgentService } from '../modules/ai/agent.service';
+import { AgentRunner } from '../modules/ai/agent/agent-runner.service';
+import { ToolRegistry } from '../modules/ai/tools/tool-registry';
+import { AI_TOOLS, ToolRegistrar } from '../modules/ai/tools/tool-registrar';
+import { createWhoAmITool } from '../modules/ai/tools/who-am-i.tool';
+import { ChatSession, ChatSessionSchema } from '../modules/ai/schemas/chat-session.schema';
+import { ChatMessage, ChatMessageSchema } from '../modules/ai/schemas/chat-message.schema';
+import { AiExecution, AiExecutionSchema } from '../modules/ai/schemas/ai-execution.schema';
+import {
+  ChatSessionsRepository,
+  MongoChatSessionsRepository,
+} from '../modules/ai/repositories/chat-sessions.repository';
+import {
+  ChatMessagesRepository,
+  MongoChatMessagesRepository,
+} from '../modules/ai/repositories/chat-messages.repository';
+import {
+  AiExecutionsRepository,
+  MongoAiExecutionsRepository,
+} from '../modules/ai/repositories/ai-executions.repository';
 import { AuthService } from '../modules/auth/auth.service';
 import { PasswordService } from '../modules/auth/password.service';
 import { TokenService } from '../modules/auth/token.service';
@@ -87,6 +111,12 @@ const testEnv: Partial<Env> = {
   JWT_REFRESH_TTL: '7d',
   RESET_TOKEN_TTL_MIN: 30,
   WEB_APP_URL: 'http://localhost:5173',
+  GEMINI_MODEL: 'gemini-test',
+  GEMINI_EMBED_MODEL: 'text-embedding-004',
+  AI_MAX_ITERATIONS: 3,
+  AI_TOKEN_BUDGET: 24000,
+  AI_NODE_TIMEOUT_MS: 45000,
+  AI_RUN_TIMEOUT_MS: 120000,
 };
 
 export interface MailSpy {
@@ -116,6 +146,10 @@ export interface TestContext {
   dashboard: DashboardService;
   activity: ActivityService;
   audit: AuditService;
+  chat: ChatService;
+  agent: AgentService;
+  toolRegistry: ToolRegistry;
+  gemini: FakeGeminiClient;
   mail: MailSpy;
   storage: StorageSpy;
 }
@@ -127,6 +161,7 @@ export interface TestContext {
 export async function createTestContext(): Promise<TestContext | null> {
   const mail: MailSpy = { sent: [], notifications: [] };
   const storageSpy: StorageSpy = { uploads: [], downloads: [], deleted: [] };
+  const fakeGemini = new FakeGeminiClient();
   const fakeStorage: StorageService = {
     urlTtlSec: 900,
     presignUpload: async ({ key, contentType }) => {
@@ -167,6 +202,9 @@ export async function createTestContext(): Promise<TestContext | null> {
           { name: Label.name, schema: LabelSchema },
           { name: FileAsset.name, schema: FileSchema },
           { name: Notification.name, schema: NotificationSchema },
+          { name: ChatSession.name, schema: ChatSessionSchema },
+          { name: ChatMessage.name, schema: ChatMessageSchema },
+          { name: AiExecution.name, schema: AiExecutionSchema },
         ]),
       ],
       providers: [
@@ -185,6 +223,21 @@ export async function createTestContext(): Promise<TestContext | null> {
         FilesService,
         NotificationsService,
         NotificationsListener,
+        UsersService,
+        ChatService,
+        AgentService,
+        AgentRunner,
+        ToolRegistry,
+        ToolRegistrar,
+        {
+          provide: AI_TOOLS,
+          useFactory: (users: UsersService) => [createWhoAmITool(users)],
+          inject: [UsersService],
+        },
+        { provide: GeminiClient, useValue: fakeGemini },
+        { provide: ChatSessionsRepository, useClass: MongoChatSessionsRepository },
+        { provide: ChatMessagesRepository, useClass: MongoChatMessagesRepository },
+        { provide: AiExecutionsRepository, useClass: MongoAiExecutionsRepository },
         DashboardService,
         DashboardRepository,
         // No-op cache in tests: always computes fresh so assertions are deterministic.
@@ -247,6 +300,10 @@ export async function createTestContext(): Promise<TestContext | null> {
     dashboard: module.get(DashboardService),
     activity: module.get(ActivityService),
     audit: module.get(AuditService),
+    chat: module.get(ChatService),
+    agent: module.get(AgentService),
+    toolRegistry: module.get(ToolRegistry),
+    gemini: fakeGemini,
     mail,
     storage: storageSpy,
   };
