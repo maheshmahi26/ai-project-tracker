@@ -97,11 +97,17 @@ export class AgentRunner {
       const status: AiExecutionStatus = final.pending.length > 0 ? 'partial' : 'success';
       return this.toResult(final, status);
     } catch (error) {
-      this.logger.error('Agent run failed', error as Error);
+      const err = error as Error & { status?: unknown };
+      this.logger.error(`Agent run failed: ${err?.message ?? String(error)}`, err?.stack);
+      const detail = `${String(err?.status ?? '')} ${err?.message ?? ''}`.toUpperCase();
+      const rateLimited =
+        /\b(429|503)\b|UNAVAILABLE|RESOURCE_EXHAUSTED|OVERLOADED|HIGH DEMAND|QUOTA/.test(detail);
       const message =
         error instanceof NodeTimeoutError
           ? 'The request took too long and was stopped.'
-          : 'Something went wrong while processing your request.';
+          : rateLimited
+            ? 'The AI service is busy or rate-limited right now. Please wait a moment and try again.'
+            : 'Something went wrong while processing your request.';
       params.emit({ type: 'error', code: 'AGENT_FAILED', message });
       // Preserve any partial work if a tool already ran.
       return {
@@ -158,9 +164,21 @@ export class AgentRunner {
       );
 
       const modelParts: Part[] = [];
-      if (turn.text) modelParts.push({ text: turn.text });
+      if (turn.text) {
+        modelParts.push({
+          text: turn.text,
+          ...(turn.textThoughtSignature
+            ? { thoughtSignature: turn.textThoughtSignature }
+            : {}),
+        });
+      }
       for (const call of turn.toolCalls) {
-        modelParts.push({ functionCall: { id: call.callId, name: call.name, args: call.args } });
+        // Echo the thought signature back on the functionCall part — Gemini 3
+        // thinking models reject the next turn without it.
+        modelParts.push({
+          functionCall: { id: call.callId, name: call.name, args: call.args },
+          ...(call.thoughtSignature ? { thoughtSignature: call.thoughtSignature } : {}),
+        });
       }
 
       return {

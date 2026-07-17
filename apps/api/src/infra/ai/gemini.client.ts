@@ -12,6 +12,12 @@ export interface GeminiToolCall {
   callId: string;
   name: string;
   args: Record<string, unknown>;
+  /**
+   * Opaque signature Gemini 3 (thinking) models attach to a functionCall part.
+   * It MUST be echoed back on that part when the tool result is sent, or the
+   * next request is rejected with `INVALID_ARGUMENT` (missing thought_signature).
+   */
+  thoughtSignature?: string;
 }
 
 /** The distilled result of one Gemini turn (text + any tool calls + usage). */
@@ -19,6 +25,8 @@ export interface GeminiTurn {
   text: string;
   toolCalls: GeminiToolCall[];
   tokens: { in: number; out: number };
+  /** Signature attached to the model's text part (Gemini 3 thinking models). */
+  textThoughtSignature?: string;
 }
 
 export interface GeminiGenerateParams {
@@ -89,75 +97,167 @@ export class GoogleGeminiClient extends GeminiClient {
     return this.ai !== null;
   }
 
+  /** Max *additional* attempts after the first for transient upstream errors. */
+  private static readonly MAX_RETRIES = 2;
+
+  /**
+   * Transient = worth retrying: rate limits (429) and upstream unavailability
+   * (500/503) that Gemini surfaces under load — common on the free tier and for
+   * preview models. Permanent errors (bad key, unknown model) are not retried.
+   */
+  private isTransient(error: unknown): boolean {
+    const status = (error as { status?: unknown })?.status;
+    if (typeof status === 'number' && [429, 500, 503].includes(status)) return true;
+    const text = `${String(status ?? '')} ${(error as Error)?.message ?? ''}`.toUpperCase();
+    return /\b(429|500|503)\b|UNAVAILABLE|RESOURCE_EXHAUSTED|OVERLOADED|HIGH DEMAND|TRY AGAIN/.test(
+      text,
+    );
+  }
+
+  /** Exponential backoff with jitter, capped so we stay within node timeouts. */
+  private backoffMs(attempt: number): number {
+    return Math.min(4000, 500 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 250);
+  }
+
+  private async delay(ms: number, signal?: AbortSignal): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) return reject(new Error('aborted'));
+      const timer = setTimeout(resolve, ms);
+      signal?.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          reject(new Error('aborted'));
+        },
+        { once: true },
+      );
+    });
+  }
+
+  /** Retry wrapper for non-streaming calls (safe to replay in full). */
+  private async withRetry<T>(op: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await op();
+      } catch (error) {
+        if (
+          attempt > GoogleGeminiClient.MAX_RETRIES ||
+          signal?.aborted ||
+          !this.isTransient(error)
+        ) {
+          throw error;
+        }
+        this.logger.warn(
+          `Gemini call transient error (attempt ${attempt}), retrying: ${(error as Error).message}`,
+        );
+        await this.delay(this.backoffMs(attempt), signal);
+      }
+    }
+  }
+
   async generate(params: GeminiGenerateParams): Promise<GeminiTurn> {
     if (!this.ai) throw new Error('GEMINI_API_KEY is not configured');
+    const ai = this.ai;
 
     const tools = params.functionDeclarations?.length
       ? [{ functionDeclarations: params.functionDeclarations }]
       : undefined;
+    const config = {
+      systemInstruction: params.systemInstruction,
+      abortSignal: params.signal,
+      temperature: 0.2,
+      ...(tools
+        ? {
+            tools,
+            toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
+          }
+        : {}),
+    };
 
-    const stream = await this.ai.models.generateContentStream({
-      model: this.model,
-      contents: params.contents,
-      config: {
-        systemInstruction: params.systemInstruction,
-        abortSignal: params.signal,
-        temperature: 0.2,
-        ...(tools
-          ? {
-              tools,
-              toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
+    // Retry transient upstream errors (429/503), but only while no streamed text
+    // has been forwarded yet — otherwise the client would see duplicated tokens.
+    for (let attempt = 1; ; attempt++) {
+      let emittedAny = false;
+      try {
+        const stream = await ai.models.generateContentStream({
+          model: this.model,
+          contents: params.contents,
+          config,
+        });
+
+        let text = '';
+        let tokensIn = 0;
+        let tokensOut = 0;
+        let callSeq = 0;
+        let textThoughtSignature: string | undefined;
+        const toolCalls: GeminiToolCall[] = [];
+
+        for await (const chunk of stream) {
+          // Iterate parts directly (not the `functionCalls` getter) so we can
+          // preserve each part's `thoughtSignature`, which Gemini 3 requires on
+          // replay. Skip "thought" parts — those are internal reasoning.
+          const parts = chunk.candidates?.[0]?.content?.parts ?? [];
+          for (const part of parts) {
+            if (part.thought) continue;
+            if (typeof part.text === 'string' && part.text.length > 0) {
+              text += part.text;
+              emittedAny = true;
+              params.onToken?.(part.text);
+              if (part.thoughtSignature) textThoughtSignature = part.thoughtSignature;
             }
-          : {}),
-      },
-    });
-
-    let text = '';
-    let tokensIn = 0;
-    let tokensOut = 0;
-    let callSeq = 0;
-    const toolCalls: GeminiToolCall[] = [];
-
-    for await (const chunk of stream) {
-      const delta = chunk.text;
-      if (delta) {
-        text += delta;
-        params.onToken?.(delta);
-      }
-      const calls = chunk.functionCalls;
-      if (calls?.length) {
-        for (const call of calls) {
-          toolCalls.push({
-            callId: call.id ?? `call_${callSeq++}`,
-            name: call.name ?? 'unknown',
-            args: (call.args ?? {}) as Record<string, unknown>,
-          });
+            if (part.functionCall) {
+              toolCalls.push({
+                callId: part.functionCall.id ?? `call_${callSeq++}`,
+                name: part.functionCall.name ?? 'unknown',
+                args: (part.functionCall.args ?? {}) as Record<string, unknown>,
+                thoughtSignature: part.thoughtSignature,
+              });
+            }
+          }
+          const usage = chunk.usageMetadata;
+          if (usage) {
+            tokensIn = usage.promptTokenCount ?? tokensIn;
+            tokensOut = usage.candidatesTokenCount ?? tokensOut;
+          }
         }
-      }
-      const usage = chunk.usageMetadata;
-      if (usage) {
-        tokensIn = usage.promptTokenCount ?? tokensIn;
-        tokensOut = usage.candidatesTokenCount ?? tokensOut;
+
+        return { text, toolCalls, tokens: { in: tokensIn, out: tokensOut }, textThoughtSignature };
+      } catch (error) {
+        if (
+          emittedAny ||
+          attempt > GoogleGeminiClient.MAX_RETRIES ||
+          params.signal?.aborted ||
+          !this.isTransient(error)
+        ) {
+          throw error;
+        }
+        this.logger.warn(
+          `Gemini generate transient error (attempt ${attempt}), retrying: ${(error as Error).message}`,
+        );
+        await this.delay(this.backoffMs(attempt), params.signal);
       }
     }
-
-    return { text, toolCalls, tokens: { in: tokensIn, out: tokensOut } };
   }
 
   async generateJson(params: GeminiJsonParams): Promise<GeminiJsonResult> {
     if (!this.ai) throw new Error('GEMINI_API_KEY is not configured');
+    const ai = this.ai;
 
-    const res = await this.ai.models.generateContent({
-      model: this.model,
-      contents: [{ role: 'user', parts: [{ text: params.prompt }] }],
-      config: {
-        systemInstruction: params.systemInstruction,
-        abortSignal: params.signal,
-        temperature: 0.3,
-        responseMimeType: 'application/json',
-        ...(params.responseSchema ? { responseJsonSchema: params.responseSchema } : {}),
-      },
-    });
+    const res = await this.withRetry(
+      () =>
+        ai.models.generateContent({
+          model: this.model,
+          contents: [{ role: 'user', parts: [{ text: params.prompt }] }],
+          config: {
+            systemInstruction: params.systemInstruction,
+            abortSignal: params.signal,
+            temperature: 0.3,
+            responseMimeType: 'application/json',
+            ...(params.responseSchema ? { responseJsonSchema: params.responseSchema } : {}),
+          },
+        }),
+      params.signal,
+    );
 
     const raw = res.text ?? '';
     const usage = res.usageMetadata;
@@ -177,11 +277,14 @@ export class GoogleGeminiClient extends GeminiClient {
   async embed(texts: string[]): Promise<number[][]> {
     if (!this.ai) throw new Error('GEMINI_API_KEY is not configured');
     if (texts.length === 0) return [];
-    const res = await this.ai.models.embedContent({
-      model: this.embedModel,
-      contents: texts,
-      config: { outputDimensionality: this.embedDim },
-    });
+    const ai = this.ai;
+    const res = await this.withRetry(() =>
+      ai.models.embedContent({
+        model: this.embedModel,
+        contents: texts,
+        config: { outputDimensionality: this.embedDim },
+      }),
+    );
     return (res.embeddings ?? []).map((e) => e.values ?? []);
   }
 }
