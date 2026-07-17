@@ -5,21 +5,20 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel superseded runs on the same ref to save minutes.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: typecheck · lint · build
+  verify:
+    name: lint · typecheck · build · test (coverage gated)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,17 +29,37 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
-
       - name: Lint
         run: pnpm lint
 
-      - name: Format check
-        run: pnpm format:check
+      - name: Typecheck
+        run: pnpm typecheck
 
+      # Full build also emits @ai-projectos/shared's dist, which the app test
+      # suites import from, and validates the production web/api builds.
       - name: Build
         run: pnpm build
 
-      - name: Test
-        run: pnpm test
+      # A single-node replica set so multi-document transactions are exercised
+      # (not just the standalone fallback path).
+      - name: Start MongoDB (replica set)
+        uses: supercharge/mongodb-github-action@1.11.0
+        with:
+          mongodb-version: '7.0'
+          mongodb-replica-set: rs0
+
+      - name: Web unit tests (coverage gate)
+        run: pnpm --filter @ai-projectos/web exec vitest run --coverage
+
+      - name: API unit + integration tests (coverage gate)
+        run: pnpm --filter @ai-projectos/api exec vitest run --coverage --no-file-parallelism
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            apps/api/coverage/lcov.info
+            apps/web/coverage/lcov.info
+          if-no-files-found: ignore

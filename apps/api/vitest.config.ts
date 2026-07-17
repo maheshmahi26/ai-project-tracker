@@ -6,6 +6,41 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     globals: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'json-summary', 'lcov'],
+      reportsDirectory: './coverage',
+      // Cover the layers that hold business logic; exclude framework glue and
+      // thin delegators. Controllers are intentionally excluded: the integration
+      // harness exercises services + repositories directly (guards/pipes are
+      // unit-tested separately), so HTTP wiring would only add vanity numbers.
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/main.ts',
+        'src/worker.ts',
+        'src/**/*.module.ts',
+        'src/**/*.controller.ts',
+        'src/**/schemas/**',
+        'src/**/strategies/**',
+        'src/**/decorators/**',
+        'src/**/*.types.ts',
+        'src/config/**',
+        'src/observability/**',
+        'src/infra/**',
+        'src/health/**',
+        'src/test/**',
+        'src/**/*.spec.ts',
+      ],
+      // Floors set just under current coverage so the gate catches regressions
+      // without being flaky. Business layers (services/repos/mappers) sit ~86%
+      // statements / ~92% functions; branches are inherently lower.
+      thresholds: {
+        statements: 82,
+        branches: 70,
+        functions: 88,
+        lines: 82,
+      },
+    },
   },
   plugins: [
     // Compile with SWC so NestJS decorators + metadata work in tests.

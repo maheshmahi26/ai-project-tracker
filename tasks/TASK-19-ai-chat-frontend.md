@@ -17,6 +17,7 @@
 - **Tool execution visualization** cards: tool name → args (pretty JSON) → status spinner → result/error; deep links to created entities (e.g. `AUTH-124`).
 - **Suggested prompts** (contextual to current project/screen); **in-chat confirm** dialog for destructive/propose→confirm actions.
 - Session CRUD; conversation persists; keyboard + a11y; skeleton/empty/error states.
+- **Routing**: nest the AI-chat routes inside `AppShell` so they sit under the `RequirePasswordCurrent` guard — a user on a temporary password must complete `/change-password` before reaching chat.
 
 ## Scope — out
 - RAG document UI + citations (TASK-21). Memory resolver internals (TASK-21) — chat just renders what the API returns.

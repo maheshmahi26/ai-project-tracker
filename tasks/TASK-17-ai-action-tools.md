@@ -21,6 +21,7 @@
 
 ## Scope — out
 - Generative tools (TASK-18). Chat UI (TASK-19).
+- **User/member management tools** (`createUser`, `blockUser`/`unblockUser`, `changeMemberRole`) are intentionally **not** in the catalogue by default. The admin user-management feature is UI-only. Add these later only if AI↔UI parity for administration is desired — if so, wrap the existing `OrganizationsService` methods, gate with `requiredPermission: 'manage:users'`, audit `source:'ai'`, and require confirmation for `blockUser`.
 
 ## Deliverables
 - Full parity: everything the human UI can mutate is callable by the agent through audited tools.

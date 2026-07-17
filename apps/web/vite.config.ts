@@ -35,6 +35,34 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       css: true,
       include: ['src/**/*.{test,spec}.{ts,tsx}'],
+      // Playwright specs live under e2e/ and must not be picked up by Vitest.
+      exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text-summary', 'json-summary', 'lcov'],
+        reportsDirectory: './coverage',
+        // Front-end coverage targets the logic layers (API clients, query hooks,
+        // stores, pure helpers, form/validation logic). Presentational rendering
+        // and page composition are validated by the Playwright E2E journeys, so
+        // gating them here would only chase vanity numbers.
+        include: [
+          'src/lib/api-client.ts',
+          'src/stores/**/*.{ts,tsx}',
+          'src/hooks/**/*.{ts,tsx}',
+          'src/features/**/lib/**/*.{ts,tsx}',
+          'src/features/projects/hooks/**/*.{ts,tsx}',
+          'src/features/auth/api/**/*.{ts,tsx}',
+        ],
+        exclude: ['**/*.{test,spec}.{ts,tsx}', 'src/test/**', 'e2e/**'],
+        // Floors just under current; the logic layer here is small and the
+        // real UI journeys are covered by the Playwright E2E suite.
+        thresholds: {
+          statements: 58,
+          branches: 75,
+          functions: 55,
+          lines: 58,
+        },
+      },
     },
   };
 });
