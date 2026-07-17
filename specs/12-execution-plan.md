@@ -148,7 +148,7 @@ The [`../history/`](../history/) folder is the durable memory of the build.
 | TASK-16 | AI foundation | AI | ✅ done (2026-07-17, Gemini client + MCP tool registry + LangGraph agent w/ guardrails + chat/SSE + audited AIExecutions + whoAmI tool; 144 API tests, coverage-gated; Gemini mocked in CI, live smoke verified) |
 | TASK-17 | AI action/CRUD tools | AI | ✅ done (2026-07-18, 17 audited tools wrapping task/project/sprint/comment/label services + name/key reference resolver w/ disambiguation + confirmation gating for destructive tools + `source:'ai'` attribution; 160 API tests incl. 8-case action-tools integration suite; typecheck/lint/build green) |
 | TASK-18 | AI generative tools | AI | ✅ done (2026-07-18, 13 structured-JSON generative tools + deterministic `analytics` over TASK-12 aggregates; prompts+schemas in shared; JSON-mode Gemini w/ re-validation; `generateSprint`→`applySprintPlan` propose→confirm→commit audited `source:'ai'`; 157 API tests incl. 5-case generative integration suite; typecheck/lint/build green) |
-| TASK-19 | AI chat frontend | AI | ☐ |
+| TASK-19 | AI chat frontend | AI | ✅ done (2026-07-18, ChatGPT-like `features/ai-chat`: fetch-based SSE streaming + pure `streamReducer`; markdown + highlight.js code; tool-execution cards w/ args/status/result/error + deep-link chips; in-chat confirm for destructive/propose→confirm via `CONFIRM_REPLY`; session CRUD + infinite history; suggested prompts; nested under AppShell/RequirePasswordCurrent; 64 web tests incl. 19-case AI-chat suite; typecheck/lint/build green) |
 | TASK-20 | RAG ingestion (Qdrant) | AI | ☐ |
 | TASK-21 | RAG features + memory | AI | ☐ |
 | TASK-22 | Final docs & ADRs | AI | ☐ |

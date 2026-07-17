@@ -141,6 +141,79 @@ async function requestWithMeta<T>(
   return { data: envelope.data, meta: envelope.meta };
 }
 
+/**
+ * Opens a POST request whose response is a `text/event-stream` (SSE) and yields
+ * decoded `{ event, data }` frames as they arrive. Auth + org headers are injected
+ * exactly like {@link request}. On a 401 the caller should re-auth and retry — we do
+ * a single transparent refresh before surfacing the failure.
+ *
+ * `EventSource` is intentionally not used: it cannot send an `Authorization` header,
+ * and our access token lives in memory (never a cookie the browser would attach).
+ */
+async function* postSse(
+  path: string,
+  body: unknown,
+  opts?: RequestOptions & { retry?: boolean },
+): AsyncGenerator<{ event: string; data: string }> {
+  const headers: Record<string, string> = {
+    Accept: 'text/event-stream',
+    'Content-Type': 'application/json',
+    ...opts?.headers,
+  };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const orgId = getOrgId();
+  if (orgId && !('x-org-id' in headers)) headers['x-org-id'] = orgId;
+
+  const res = await fetch(buildUrl(path, opts?.params), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body ?? {}),
+    signal: opts?.signal,
+    credentials: 'include',
+  });
+
+  if (res.status === 401 && refreshHandler && !opts?.retry) {
+    const refreshed = await refreshHandler();
+    if (refreshed) {
+      yield* postSse(path, body, { ...opts, retry: true });
+      return;
+    }
+  }
+
+  if (!res.ok || !res.body) {
+    throw toClientError(res.status, await parseBody(res));
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE frames are separated by a blank line.
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        let event = 'message';
+        const dataLines: string[] = [];
+        for (const line of frame.split('\n')) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+        }
+        if (dataLines.length > 0) yield { event, data: dataLines.join('\n') };
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => undefined);
+  }
+}
+
 /** Raw GET returning a Blob (e.g. CSV export). Skips envelope unwrapping. */
 async function getBlob(path: string, opts?: RequestOptions): Promise<Blob> {
   const headers: Record<string, string> = { ...opts?.headers };
@@ -164,6 +237,7 @@ export const apiClient = {
   get: <T>(path: string, opts?: RequestOptions): Promise<T> =>
     request<T>(path, { ...opts, method: 'GET' }),
   getBlob,
+  postSse,
   getWithMeta: <T>(path: string, opts?: RequestOptions): Promise<{ data: T; meta: ApiMeta }> =>
     requestWithMeta<T>(path, { ...opts, method: 'GET' }),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions): Promise<T> =>

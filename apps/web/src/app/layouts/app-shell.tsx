@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
+  Bot,
   CheckSquare,
   FolderKanban,
   LayoutDashboard,
@@ -54,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { to: '/chat', label: 'Assistant', icon: Bot },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
