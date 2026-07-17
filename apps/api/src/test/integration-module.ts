@@ -60,7 +60,12 @@ import { AgentService } from '../modules/ai/agent.service';
 import { AgentRunner } from '../modules/ai/agent/agent-runner.service';
 import { ToolRegistry } from '../modules/ai/tools/tool-registry';
 import { AI_TOOLS, ToolRegistrar } from '../modules/ai/tools/tool-registrar';
+import { ReferenceResolver } from '../modules/ai/tools/reference-resolver';
 import { createWhoAmITool } from '../modules/ai/tools/who-am-i.tool';
+import { createTaskTools } from '../modules/ai/tools/task-tools';
+import { createProjectTools } from '../modules/ai/tools/project-tools';
+import { createSprintTools } from '../modules/ai/tools/sprint-tools';
+import { createCollabTools } from '../modules/ai/tools/collab-tools';
 import { ChatSession, ChatSessionSchema } from '../modules/ai/schemas/chat-session.schema';
 import { ChatMessage, ChatMessageSchema } from '../modules/ai/schemas/chat-message.schema';
 import { AiExecution, AiExecutionSchema } from '../modules/ai/schemas/ai-execution.schema';
@@ -149,6 +154,7 @@ export interface TestContext {
   chat: ChatService;
   agent: AgentService;
   toolRegistry: ToolRegistry;
+  resolver: ReferenceResolver;
   gemini: FakeGeminiClient;
   mail: MailSpy;
   storage: StorageSpy;
@@ -229,10 +235,33 @@ export async function createTestContext(): Promise<TestContext | null> {
         AgentRunner,
         ToolRegistry,
         ToolRegistrar,
+        ReferenceResolver,
         {
           provide: AI_TOOLS,
-          useFactory: (users: UsersService) => [createWhoAmITool(users)],
-          inject: [UsersService],
+          useFactory: (
+            users: UsersService,
+            tasks: TasksService,
+            projects: ProjectsService,
+            sprints: SprintsService,
+            comments: CommentsService,
+            labels: LabelsService,
+            resolver: ReferenceResolver,
+          ) => [
+            createWhoAmITool(users),
+            ...createTaskTools(tasks, resolver),
+            ...createProjectTools(projects, resolver),
+            ...createSprintTools(sprints, tasks, resolver),
+            ...createCollabTools(comments, labels, resolver),
+          ],
+          inject: [
+            UsersService,
+            TasksService,
+            ProjectsService,
+            SprintsService,
+            CommentsService,
+            LabelsService,
+            ReferenceResolver,
+          ],
         },
         { provide: GeminiClient, useValue: fakeGemini },
         { provide: ChatSessionsRepository, useClass: MongoChatSessionsRepository },
@@ -303,6 +332,7 @@ export async function createTestContext(): Promise<TestContext | null> {
     chat: module.get(ChatService),
     agent: module.get(AgentService),
     toolRegistry: module.get(ToolRegistry),
+    resolver: module.get(ReferenceResolver),
     gemini: fakeGemini,
     mail,
     storage: storageSpy,

@@ -31,6 +31,7 @@ export interface SprintPointTotals {
 
 export abstract class TasksRepository {
   abstract findById(orgId: string, id: string, includeDeleted?: boolean): Promise<TaskLean | null>;
+  abstract findByKey(orgId: string, key: string): Promise<TaskLean | null>;
   abstract findByIds(orgId: string, ids: string[]): Promise<TaskLean[]>;
   abstract create(data: Partial<Task>, session?: ClientSession): Promise<TaskLean>;
   abstract updateById(
@@ -69,6 +70,14 @@ export class MongoTasksRepository extends TasksRepository {
     const filter: FilterQuery<TaskDocument> = { _id: id, orgId };
     if (!includeDeleted) filter.isDeleted = { $ne: true };
     return this.model.findOne(filter).lean<TaskLean>().exec();
+  }
+
+  findByKey(orgId: string, key: string): Promise<TaskLean | null> {
+    if (!Types.ObjectId.isValid(orgId)) return Promise.resolve(null);
+    return this.model
+      .findOne({ orgId: new Types.ObjectId(orgId), key: key.toUpperCase(), isDeleted: { $ne: true } })
+      .lean<TaskLean>()
+      .exec();
   }
 
   findByIds(orgId: string, ids: string[]): Promise<TaskLean[]> {

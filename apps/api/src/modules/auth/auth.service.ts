@@ -15,6 +15,10 @@ export interface RequestMeta {
   requestId?: string | null;
   ip?: string | null;
   userAgent?: string | null;
+  /** Origin of the write — defaults to 'ui'. AI tool calls set 'ai' so audit
+   *  logs and activity feeds attribute the change to the agent. */
+  source?: 'ui' | 'ai' | 'system';
+  actorType?: 'user' | 'ai' | 'system';
 }
 
 export interface GoogleProfile {

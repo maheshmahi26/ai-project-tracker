@@ -5,13 +5,28 @@ import { AiInfraModule } from '../../infra/ai/ai-infra.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
 import { UsersService } from '../users/users.service';
+import { ProjectsModule } from '../projects/projects.module';
+import { ProjectsService } from '../projects/projects.service';
+import { TasksModule } from '../tasks/tasks.module';
+import { TasksService } from '../tasks/tasks.service';
+import { SprintsModule } from '../sprints/sprints.module';
+import { SprintsService } from '../sprints/sprints.service';
+import { CommentsModule } from '../comments/comments.module';
+import { CommentsService } from '../comments/comments.service';
+import { LabelsModule } from '../labels/labels.module';
+import { LabelsService } from '../labels/labels.service';
 import { AiController } from './ai.controller';
 import { ChatService } from './chat.service';
 import { AgentService } from './agent.service';
 import { AgentRunner } from './agent/agent-runner.service';
 import { ToolRegistry } from './tools/tool-registry';
 import { AI_TOOLS, ToolRegistrar } from './tools/tool-registrar';
+import { ReferenceResolver } from './tools/reference-resolver';
 import { createWhoAmITool } from './tools/who-am-i.tool';
+import { createTaskTools } from './tools/task-tools';
+import { createProjectTools } from './tools/project-tools';
+import { createSprintTools } from './tools/sprint-tools';
+import { createCollabTools } from './tools/collab-tools';
 import { ChatSession, ChatSessionSchema } from './schemas/chat-session.schema';
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { AiExecution, AiExecutionSchema } from './schemas/ai-execution.schema';
@@ -34,6 +49,11 @@ import {
     AiInfraModule,
     OrganizationsModule,
     UsersModule,
+    ProjectsModule,
+    TasksModule,
+    SprintsModule,
+    CommentsModule,
+    LabelsModule,
     MongooseModule.forFeature([
       { name: ChatSession.name, schema: ChatSessionSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
@@ -47,11 +67,35 @@ import {
     AgentRunner,
     ToolRegistry,
     ToolRegistrar,
-    // Each tool is a multi-provider so adding one never touches central wiring.
+    ReferenceResolver,
+    // The full tool catalogue is assembled here. Every tool wraps an existing
+    // Application service, so the agent has exactly the same reach as the UI.
     {
       provide: AI_TOOLS,
-      useFactory: (users: UsersService) => [createWhoAmITool(users)],
-      inject: [UsersService],
+      useFactory: (
+        users: UsersService,
+        tasks: TasksService,
+        projects: ProjectsService,
+        sprints: SprintsService,
+        comments: CommentsService,
+        labels: LabelsService,
+        resolver: ReferenceResolver,
+      ) => [
+        createWhoAmITool(users),
+        ...createTaskTools(tasks, resolver),
+        ...createProjectTools(projects, resolver),
+        ...createSprintTools(sprints, tasks, resolver),
+        ...createCollabTools(comments, labels, resolver),
+      ],
+      inject: [
+        UsersService,
+        TasksService,
+        ProjectsService,
+        SprintsService,
+        CommentsService,
+        LabelsService,
+        ReferenceResolver,
+      ],
     },
     { provide: ChatSessionsRepository, useClass: MongoChatSessionsRepository },
     { provide: ChatMessagesRepository, useClass: MongoChatMessagesRepository },
