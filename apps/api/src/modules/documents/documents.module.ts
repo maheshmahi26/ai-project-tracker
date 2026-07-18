@@ -8,6 +8,8 @@ import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
 import { DocumentsRepository, MongoDocumentsRepository } from './documents.repository';
 import { EmbeddingsRepository, MongoEmbeddingsRepository } from './embeddings.repository';
+import { RagService } from './rag/rag.service';
+import { SearchController } from './rag/search.controller';
 import { DocEntity, DocumentSchema } from './schemas/document.schema';
 import { Embedding, EmbeddingSchema } from './schemas/embedding.schema';
 import { DOCUMENT_QUEUE } from './documents.constants';
@@ -29,12 +31,13 @@ import { DOCUMENT_QUEUE } from './documents.constants';
     ]),
     BullModule.registerQueue({ name: DOCUMENT_QUEUE }),
   ],
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, SearchController],
   providers: [
     DocumentsService,
+    RagService,
     { provide: DocumentsRepository, useClass: MongoDocumentsRepository },
     { provide: EmbeddingsRepository, useClass: MongoEmbeddingsRepository },
   ],
-  exports: [DocumentsRepository, EmbeddingsRepository],
+  exports: [DocumentsRepository, EmbeddingsRepository, RagService],
 })
 export class DocumentsModule {}

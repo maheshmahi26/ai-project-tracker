@@ -982,6 +982,8 @@ export interface ChatSessionDTO {
   userId: string;
   title: string;
   projectId?: string | null;
+  /** Rolling memory summary of older turns; empty until a session grows long. */
+  summary?: string;
   lastMessageAt?: string | null;
   messageCount: number;
   createdAt: string;
@@ -1259,3 +1261,96 @@ export const generativePrompts = {
   generateMeetingSummary: (ctx: { notes: string }): string =>
     `Summarize these meeting notes into a summary, explicit decisions, and action items with owners:\n\n${ctx.notes}`,
 };
+
+// ───────────────────────────────────────────────────────────────────────────
+// RAG — retrieval, grounded Q&A, and document-driven generation (TASK-21)
+// ───────────────────────────────────────────────────────────────────────────
+
+/** A single retrieved chunk with the citation fields the UI renders. */
+export const knowledgeChunkSchema = z.object({
+  documentId: z.string(),
+  documentTitle: z.string(),
+  chunkIndex: z.number().int(),
+  snippet: z.string(),
+  score: z.number(),
+});
+export type KnowledgeChunk = z.infer<typeof knowledgeChunkSchema>;
+
+export const knowledgeSearchResultSchema = z.object({
+  query: z.string(),
+  chunks: z.array(knowledgeChunkSchema),
+});
+export type KnowledgeSearchResult = z.infer<typeof knowledgeSearchResultSchema>;
+
+/** Grounded answer: model prose + the deterministic citations it was grounded on. */
+export const groundedAnswerSchema = z.object({
+  answer: z.string(),
+  citations: z.array(knowledgeChunkSchema).default([]),
+});
+export type GroundedAnswer = z.infer<typeof groundedAnswerSchema>;
+
+/** Proposed tasks derived from a document (propose → confirm → createTask). */
+export const documentTaskPlanSchema = z.object({
+  documentId: z.string(),
+  documentTitle: z.string(),
+  tasks: z.array(proposedTaskSchema).min(1).max(30),
+});
+export type DocumentTaskPlan = z.infer<typeof documentTaskPlanSchema>;
+
+/** Request body for `POST /search/semantic`. */
+export const semanticSearchSchema = z.object({
+  query: z.string().trim().min(2).max(1000),
+  projectId: objectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(20).default(6),
+});
+export type SemanticSearchInput = z.infer<typeof semanticSearchSchema>;
+
+/** Request body for `POST /documents/:id/generate-tasks`. */
+export const generateDocTasksSchema = z.object({
+  projectId: objectIdSchema.optional(),
+  count: z.coerce.number().int().min(1).max(20).default(6),
+});
+export type GenerateDocTasksInput = z.infer<typeof generateDocTasksSchema>;
+
+/** Model-side output shape for the grounded-answer generation (citations added server-side). */
+export const groundedAnswerModelSchema = z.object({
+  answer: z.string(),
+  hasAnswer: z.boolean().default(true),
+});
+export type GroundedAnswerModel = z.infer<typeof groundedAnswerModelSchema>;
+
+export const RAG_ANSWER_SYSTEM_PROMPT =
+  'You answer questions strictly from the provided document context. Cite nothing you cannot see in the ' +
+  'context. If the context does not contain the answer, set hasAnswer=false and say you could not find it ' +
+  'in the documents. Return ONLY JSON conforming to the schema — no markdown, no prose outside the JSON.';
+
+export const ragPrompts = {
+  answerFromContext: (ctx: { question: string; context: string }): string =>
+    `Answer the question using ONLY the context below. Be concise and specific.\n\n` +
+    `Context:\n${ctx.context}\n\nQuestion: ${ctx.question}`,
+  tasksFromContext: (ctx: { count: number; context: string }): string =>
+    `From the document context below (e.g. a PRD or spec), propose up to ${ctx.count} concrete, ` +
+    `independently-shippable engineering tasks. Each task needs a clear title, a short description, ` +
+    `a priority, and a story-point estimate. Ground every task strictly in the context.\n\n` +
+    `Context:\n${ctx.context}`,
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+// Conversation memory — temporal entity recall (TASK-21)
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Natural timeframes the agent can resolve to a concrete [from,to) window. */
+export const RECALL_TIMEFRAMES = ['today', 'yesterday', 'this_week', 'last_week', 'recent'] as const;
+export const recallTimeframeSchema = z.enum(RECALL_TIMEFRAMES);
+export type RecallTimeframe = (typeof RECALL_TIMEFRAMES)[number];
+
+export const MEMORY_SUMMARY_SYSTEM_PROMPT =
+  'You maintain a rolling memory summary of a chat between a user and a project-management assistant. ' +
+  'Given the prior summary and the newest turns, produce an updated, compact summary (<= 200 words) that ' +
+  'preserves durable facts: goals, decisions, entities referenced (task keys, project keys, sprints), and ' +
+  'open threads. Return ONLY JSON conforming to the schema.';
+
+export const memorySummarySchema = z.object({
+  summary: z.string().max(4000),
+});
+export type MemorySummary = z.infer<typeof memorySummarySchema>;

@@ -10,6 +10,7 @@ export function toChatSessionDTO(row: ChatSessionLean): ChatSessionDTO {
     userId: row.userId.toString(),
     title: row.title,
     projectId: row.projectId ? row.projectId.toString() : null,
+    summary: row.summary ?? '',
     lastMessageAt: row.lastMessageAt ? row.lastMessageAt.toISOString() : null,
     messageCount: row.messageCount,
     createdAt: row.createdAt.toISOString(),

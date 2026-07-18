@@ -28,6 +28,9 @@ export class ChatSession {
   @Prop({ type: SchemaTypes.ObjectId, ref: 'Project', default: null })
   projectId?: Types.ObjectId | null;
 
+  @Prop({ type: String, default: '' })
+  summary!: string;
+
   @Prop({ type: Date, default: null })
   lastMessageAt?: Date | null;
 

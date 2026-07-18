@@ -25,6 +25,13 @@ export abstract class ChatMessagesRepository {
     sessionId: string,
     limit: number,
   ): Promise<ChatMessageLean[]>;
+  /** Messages created within [from, to) (oldest→newest) — powers temporal recall. */
+  abstract listBetween(
+    orgId: string,
+    sessionId: string,
+    from: Date,
+    to: Date,
+  ): Promise<ChatMessageLean[]>;
 }
 
 const valid = (...ids: string[]): boolean => ids.every((id) => Types.ObjectId.isValid(id));
@@ -70,5 +77,23 @@ export class MongoChatMessagesRepository extends ChatMessagesRepository {
       .lean<ChatMessageLean[]>()
       .exec();
     return rows.reverse();
+  }
+
+  listBetween(
+    orgId: string,
+    sessionId: string,
+    from: Date,
+    to: Date,
+  ): Promise<ChatMessageLean[]> {
+    if (!valid(orgId, sessionId)) return Promise.resolve([]);
+    return this.model
+      .find({
+        orgId: new Types.ObjectId(orgId),
+        sessionId: new Types.ObjectId(sessionId),
+        createdAt: { $gte: from, $lt: to },
+      })
+      .sort({ createdAt: 1 })
+      .lean<ChatMessageLean[]>()
+      .exec();
   }
 }

@@ -17,11 +17,17 @@ import { LabelsModule } from '../labels/labels.module';
 import { LabelsService } from '../labels/labels.service';
 import { DashboardModule } from '../dashboard/dashboard.module';
 import { DashboardService } from '../dashboard/dashboard.service';
+import { DocumentsModule } from '../documents/documents.module';
+import { DocumentsRepository } from '../documents/documents.repository';
+import { RagService } from '../documents/rag/rag.service';
 import { GeminiClient } from '../../infra/ai/gemini.client';
 import { AiController } from './ai.controller';
 import { ChatService } from './chat.service';
 import { AgentService } from './agent.service';
 import { AgentRunner } from './agent/agent-runner.service';
+import { MemoryService } from './memory/memory.service';
+import { MemoryResolver } from './memory/memory-resolver.service';
+import { Clock } from './memory/clock';
 import { ToolRegistry } from './tools/tool-registry';
 import { AI_TOOLS, ToolRegistrar } from './tools/tool-registrar';
 import { ReferenceResolver } from './tools/reference-resolver';
@@ -31,6 +37,8 @@ import { createProjectTools } from './tools/project-tools';
 import { createSprintTools } from './tools/sprint-tools';
 import { createCollabTools } from './tools/collab-tools';
 import { createGenerativeTools } from './tools/generative-tools';
+import { createRagTools } from './tools/rag-tools';
+import { createMemoryTools } from './tools/memory-tools';
 import { ChatSession, ChatSessionSchema } from './schemas/chat-session.schema';
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
 import { AiExecution, AiExecutionSchema } from './schemas/ai-execution.schema';
@@ -59,6 +67,7 @@ import {
     CommentsModule,
     LabelsModule,
     DashboardModule,
+    DocumentsModule,
     MongooseModule.forFeature([
       { name: ChatSession.name, schema: ChatSessionSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
@@ -70,6 +79,9 @@ import {
     ChatService,
     AgentService,
     AgentRunner,
+    MemoryService,
+    MemoryResolver,
+    Clock,
     ToolRegistry,
     ToolRegistrar,
     ReferenceResolver,
@@ -87,6 +99,9 @@ import {
         dashboard: DashboardService,
         gemini: GeminiClient,
         resolver: ReferenceResolver,
+        rag: RagService,
+        documents: DocumentsRepository,
+        memoryResolver: MemoryResolver,
       ) => [
         createWhoAmITool(users),
         ...createTaskTools(tasks, resolver),
@@ -94,6 +109,8 @@ import {
         ...createSprintTools(sprints, tasks, resolver),
         ...createCollabTools(comments, labels, resolver),
         ...createGenerativeTools({ gemini, tasks, projects, sprints, dashboard, resolver }),
+        ...createRagTools({ rag, documents, tasks, resolver }),
+        ...createMemoryTools(memoryResolver),
       ],
       inject: [
         UsersService,
@@ -105,6 +122,9 @@ import {
         DashboardService,
         GeminiClient,
         ReferenceResolver,
+        RagService,
+        DocumentsRepository,
+        MemoryResolver,
       ],
     },
     { provide: ChatSessionsRepository, useClass: MongoChatSessionsRepository },

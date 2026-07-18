@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Bot,
   CheckSquare,
+  FileText,
   FolderKanban,
   LayoutDashboard,
   LogOut,
@@ -56,6 +57,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
   { to: '/tasks', label: 'Tasks', icon: CheckSquare },
   { to: '/chat', label: 'Assistant', icon: Bot },
+  { to: '/documents', label: 'Knowledge', icon: FileText },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 

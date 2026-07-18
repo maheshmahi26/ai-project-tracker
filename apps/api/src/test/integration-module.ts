@@ -63,6 +63,7 @@ import {
   MongoEmbeddingsRepository,
 } from '../modules/documents/embeddings.repository';
 import { DocumentIndexer } from '../modules/documents/indexing/document-indexer.service';
+import { RagService } from '../modules/documents/rag/rag.service';
 import { DocEntity, DocumentSchema } from '../modules/documents/schemas/document.schema';
 import { Embedding, EmbeddingSchema } from '../modules/documents/schemas/embedding.schema';
 import { DOCUMENT_QUEUE } from '../modules/documents/documents.constants';
@@ -74,6 +75,9 @@ import { FakeGeminiClient } from './fake-gemini';
 import { ChatService } from '../modules/ai/chat.service';
 import { AgentService } from '../modules/ai/agent.service';
 import { AgentRunner } from '../modules/ai/agent/agent-runner.service';
+import { MemoryService } from '../modules/ai/memory/memory.service';
+import { MemoryResolver } from '../modules/ai/memory/memory-resolver.service';
+import { Clock } from '../modules/ai/memory/clock';
 import { ToolRegistry } from '../modules/ai/tools/tool-registry';
 import { AI_TOOLS, ToolRegistrar } from '../modules/ai/tools/tool-registrar';
 import { ReferenceResolver } from '../modules/ai/tools/reference-resolver';
@@ -83,6 +87,8 @@ import { createProjectTools } from '../modules/ai/tools/project-tools';
 import { createSprintTools } from '../modules/ai/tools/sprint-tools';
 import { createCollabTools } from '../modules/ai/tools/collab-tools';
 import { createGenerativeTools } from '../modules/ai/tools/generative-tools';
+import { createRagTools } from '../modules/ai/tools/rag-tools';
+import { createMemoryTools } from '../modules/ai/tools/memory-tools';
 import { ChatSession, ChatSessionSchema } from '../modules/ai/schemas/chat-session.schema';
 import { ChatMessage, ChatMessageSchema } from '../modules/ai/schemas/chat-message.schema';
 import { AiExecution, AiExecutionSchema } from '../modules/ai/schemas/ai-execution.schema';
@@ -181,6 +187,10 @@ export interface TestContext {
   resolver: ReferenceResolver;
   documents: DocumentsService;
   documentIndexer: DocumentIndexer;
+  rag: RagService;
+  memory: MemoryService;
+  memoryResolver: MemoryResolver;
+  clock: Clock;
   gemini: FakeGeminiClient;
   qdrant: FakeQdrantClient;
   mail: MailSpy;
@@ -269,6 +279,9 @@ export async function createTestContext(): Promise<TestContext | null> {
         ChatService,
         AgentService,
         AgentRunner,
+        MemoryService,
+        MemoryResolver,
+        Clock,
         ToolRegistry,
         ToolRegistrar,
         ReferenceResolver,
@@ -284,6 +297,9 @@ export async function createTestContext(): Promise<TestContext | null> {
             dashboard: DashboardService,
             gemini: GeminiClient,
             resolver: ReferenceResolver,
+            rag: RagService,
+            documents: DocumentsRepository,
+            memoryResolver: MemoryResolver,
           ) => [
             createWhoAmITool(users),
             ...createTaskTools(tasks, resolver),
@@ -291,6 +307,8 @@ export async function createTestContext(): Promise<TestContext | null> {
             ...createSprintTools(sprints, tasks, resolver),
             ...createCollabTools(comments, labels, resolver),
             ...createGenerativeTools({ gemini, tasks, projects, sprints, dashboard, resolver }),
+            ...createRagTools({ rag, documents, tasks, resolver }),
+            ...createMemoryTools(memoryResolver),
           ],
           inject: [
             UsersService,
@@ -302,11 +320,15 @@ export async function createTestContext(): Promise<TestContext | null> {
             DashboardService,
             GeminiClient,
             ReferenceResolver,
+            RagService,
+            DocumentsRepository,
+            MemoryResolver,
           ],
         },
         { provide: GeminiClient, useValue: fakeGemini },
         { provide: QdrantClient, useValue: fakeQdrant },
         DocumentsService,
+        RagService,
         DocumentIndexer,
         { provide: DocumentsRepository, useClass: MongoDocumentsRepository },
         { provide: EmbeddingsRepository, useClass: MongoEmbeddingsRepository },
@@ -382,6 +404,10 @@ export async function createTestContext(): Promise<TestContext | null> {
     resolver: module.get(ReferenceResolver),
     documents: module.get(DocumentsService),
     documentIndexer: module.get(DocumentIndexer),
+    rag: module.get(RagService),
+    memory: module.get(MemoryService),
+    memoryResolver: module.get(MemoryResolver),
+    clock: module.get(Clock),
     gemini: fakeGemini,
     qdrant: fakeQdrant,
     mail,

@@ -41,11 +41,14 @@ export class DocumentIndexer {
 
     await this.documents.updateStatus(orgId, documentId, { status: 'processing', error: null });
 
-    // Idempotency: wipe any partial results from a previous attempt first.
-    await this.qdrant.deleteByDocument(orgId, documentId);
-    await this.embeddings.deleteByDocument(orgId, documentId);
-
     try {
+      // Create the collection before any Qdrant op (idempotent), then wipe any
+      // partial results from a previous attempt. Both are inside the try so a
+      // failure marks the document `failed` instead of leaving it `processing`.
+      await this.qdrant.ensureCollection();
+      await this.qdrant.deleteByDocument(orgId, documentId);
+      await this.embeddings.deleteByDocument(orgId, documentId);
+
       const bytes = await this.storage.getObject(doc.storageKey);
       const text = await parseDocument(doc.sourceType, bytes);
       const chunks = chunkText(text, {
@@ -62,7 +65,6 @@ export class DocumentIndexer {
         return { chunkCount: 0 };
       }
 
-      await this.qdrant.ensureCollection();
       const projectId = doc.projectId ? doc.projectId.toString() : null;
       const batchSize = this.config.get('RAG_EMBED_BATCH');
 

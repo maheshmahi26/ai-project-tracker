@@ -10,6 +10,8 @@ export abstract class EmbeddingsRepository {
   abstract deleteByDocument(orgId: string, documentId: string): Promise<number>;
   abstract findByPointIds(orgId: string, pointIds: string[]): Promise<EmbeddingLean[]>;
   abstract countByDocument(orgId: string, documentId: string): Promise<number>;
+  /** Ordered chunks of one document (chunkIndex asc) — used to build a doc-wide prompt context. */
+  abstract listByDocument(orgId: string, documentId: string, limit: number): Promise<EmbeddingLean[]>;
 }
 
 @Injectable()
@@ -51,6 +53,18 @@ export class MongoEmbeddingsRepository extends EmbeddingsRepository {
         orgId: new Types.ObjectId(orgId),
         documentId: new Types.ObjectId(documentId),
       })
+      .exec();
+  }
+
+  listByDocument(orgId: string, documentId: string, limit: number): Promise<EmbeddingLean[]> {
+    if (!Types.ObjectId.isValid(orgId) || !Types.ObjectId.isValid(documentId)) {
+      return Promise.resolve([]);
+    }
+    return this.model
+      .find({ orgId: new Types.ObjectId(orgId), documentId: new Types.ObjectId(documentId) })
+      .sort({ chunkIndex: 1 })
+      .limit(limit)
+      .lean<EmbeddingLean[]>()
       .exec();
   }
 }

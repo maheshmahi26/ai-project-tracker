@@ -73,4 +73,10 @@ export const queryKeys = {
       ['ai-chat', 'messages', orgId, sessionId] as const,
     tools: (orgId: string | null) => ['ai-chat', 'tools', orgId] as const,
   },
+  documents: {
+    all: ['documents'] as const,
+    lists: ['documents', 'list'] as const,
+    list: (orgId: string | null, filters?: Record<string, unknown>) =>
+      ['documents', 'list', orgId, filters ?? {}] as const,
+  },
 } as const;

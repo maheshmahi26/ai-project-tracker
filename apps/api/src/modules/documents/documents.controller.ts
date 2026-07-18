@@ -13,10 +13,13 @@ import {
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   confirmDocumentSchema,
+  generateDocTasksSchema,
   listDocumentsQuerySchema,
   presignDocumentSchema,
   type ConfirmDocumentInput,
   type DocumentDTO,
+  type DocumentTaskPlan,
+  type GenerateDocTasksInput,
   type ListDocumentsQuery,
   type PresignDocumentInput,
   type PresignFileResult,
@@ -29,13 +32,17 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import type { OrgContext } from '../auth/auth.types';
 import { DocumentsService } from './documents.service';
+import { RagService } from './rag/rag.service';
 
 @ApiTags('documents')
 @ApiHeader({ name: 'x-org-id', description: 'Active organization id', required: true })
 @Controller('documents')
 @UseGuards(TenantGuard, PermissionsGuard)
 export class DocumentsController {
-  constructor(private readonly documents: DocumentsService) {}
+  constructor(
+    private readonly documents: DocumentsService,
+    private readonly rag: RagService,
+  ) {}
 
   @Get()
   @Permissions('read')
@@ -73,6 +80,18 @@ export class DocumentsController {
   @ApiOperation({ summary: 'Get a document (poll ingestion status)' })
   get(@Param('id') id: string, @CurrentOrg() org: OrgContext): Promise<DocumentDTO> {
     return this.documents.get(org.orgId, id);
+  }
+
+  @Post(':id/generate-tasks')
+  @Permissions('read')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Propose tasks grounded in a document (review, then create via createTask)' })
+  generateTasks(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(generateDocTasksSchema)) body: GenerateDocTasksInput,
+    @CurrentOrg() org: OrgContext,
+  ): Promise<DocumentTaskPlan> {
+    return this.rag.generateTasks(org.orgId, id, body.count);
   }
 
   @Delete(':id')

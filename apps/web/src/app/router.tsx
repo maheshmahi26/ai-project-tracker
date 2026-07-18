@@ -17,6 +17,7 @@ const ProjectDetailPage = lazy(() => import('@/features/projects/routes/project-
 const TasksPage = lazy(() => import('@/features/tasks/routes/tasks-page'));
 const TaskDetailPage = lazy(() => import('@/features/tasks/routes/task-detail-page'));
 const AiChatPage = lazy(() => import('@/features/ai-chat/routes/ai-chat-page'));
+const DocumentsPage = lazy(() => import('@/features/documents/routes/documents-page'));
 const SettingsPage = lazy(() => import('@/features/settings/routes/settings-page'));
 const OnboardingPage = lazy(() => import('@/features/organizations/routes/onboarding-page'));
 
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
                   { path: 'tasks/:taskId', element: <TaskDetailPage /> },
                   { path: 'chat', element: <AiChatPage /> },
                   { path: 'chat/:sessionId', element: <AiChatPage /> },
+                  { path: 'documents', element: <DocumentsPage /> },
                   { path: 'settings', element: <SettingsPage /> },
                 ],
               },

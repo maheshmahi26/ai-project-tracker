@@ -111,17 +111,23 @@ export class HttpQdrantClient extends QdrantClient {
   }
 
   async deleteByDocument(orgId: string, documentId: string): Promise<void> {
-    await this.req(`/collections/${this.collection}/points/delete?wait=true`, {
-      method: 'POST',
-      body: JSON.stringify({
-        filter: {
-          must: [
-            { key: 'orgId', match: { value: orgId } },
-            { key: 'documentId', match: { value: documentId } },
-          ],
-        },
-      }),
-    });
+    try {
+      await this.req(`/collections/${this.collection}/points/delete?wait=true`, {
+        method: 'POST',
+        body: JSON.stringify({
+          filter: {
+            must: [
+              { key: 'orgId', match: { value: orgId } },
+              { key: 'documentId', match: { value: documentId } },
+            ],
+          },
+        }),
+      });
+    } catch (err) {
+      // Nothing to delete if the collection doesn't exist yet — treat as no-op.
+      if (err instanceof Error && err.message.includes('→ 404')) return;
+      throw err;
+    }
   }
 
   async search(params: QdrantSearchParams): Promise<QdrantSearchHit[]> {

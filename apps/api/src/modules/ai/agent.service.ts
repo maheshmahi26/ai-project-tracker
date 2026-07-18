@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
-import type { Content } from '@google/genai';
 import type {
   ChatSessionDTO,
   ChatToolCallDTO,
@@ -12,11 +11,10 @@ import { GeminiClient } from '../../infra/ai/gemini.client';
 import { AgentRunner } from './agent/agent-runner.service';
 import { buildSystemPrompt } from './agent/system-prompt';
 import type { AgentEmit, RecordedToolCall } from './agent/agent.types';
+import { MemoryService } from './memory/memory.service';
 import { ChatSessionsRepository } from './repositories/chat-sessions.repository';
-import { ChatMessagesRepository, type ChatMessageLean } from './repositories/chat-messages.repository';
+import { ChatMessagesRepository } from './repositories/chat-messages.repository';
 import { AiExecutionsRepository } from './repositories/ai-executions.repository';
-
-const HISTORY_LIMIT = 20;
 
 export interface StreamReplyParams {
   session: ChatSessionDTO;
@@ -39,6 +37,7 @@ export class AgentService {
   constructor(
     private readonly runner: AgentRunner,
     private readonly gemini: GeminiClient,
+    private readonly memory: MemoryService,
     private readonly sessions: ChatSessionsRepository,
     private readonly messages: ChatMessagesRepository,
     private readonly executions: AiExecutionsRepository,
@@ -49,9 +48,8 @@ export class AgentService {
     const { orgId, userId, session, content, requestId } = params;
     const principal = { userId, orgId, role: params.role };
 
-    // 1. Load prior turns BEFORE persisting the new user message (no duplication).
-    const priorRows = await this.messages.recentForContext(orgId, session.id, HISTORY_LIMIT);
-    const history = toHistoryContents(priorRows);
+    // 1. Load prior turns (budgeted) BEFORE persisting the new user message.
+    const history = await this.memory.buildHistory(orgId, session.id);
 
     // 2. Persist the user turn.
     await this.messages.create({
@@ -66,7 +64,7 @@ export class AgentService {
     const started = Date.now();
     const result = await this.runner.run({
       ctx: { principal, requestId, sessionId: session.id, signal: params.signal },
-      systemInstruction: buildSystemPrompt(principal),
+      systemInstruction: buildSystemPrompt(principal, session.summary),
       history,
       userMessage: content,
       emit: params.emit,
@@ -119,6 +117,10 @@ export class AgentService {
       await this.sessions.update(orgId, userId, session.id, { title: deriveTitle(content) });
     }
 
+    // 6. Fold older turns into the rolling summary once the session grows long
+    //    (best-effort; never blocks the reply).
+    await this.memory.maybeSummarize(orgId, userId, session.id, session.summary ?? '');
+
     await this.audit.record({
       action: 'ai.chat.respond',
       actorId: userId,
@@ -151,20 +153,6 @@ function toExecutionToolCall(tc: RecordedToolCall) {
     ms: tc.ms,
     error: tc.error ? tc.error.message : null,
   };
-}
-
-/** Text-only reconstruction of prior turns. Tool-call plumbing is not replayed. */
-function toHistoryContents(rows: ChatMessageLean[]): Content[] {
-  const contents: Content[] = [];
-  for (const row of rows) {
-    if (!row.content) continue;
-    if (row.role === 'user') {
-      contents.push({ role: 'user', parts: [{ text: row.content }] });
-    } else if (row.role === 'assistant') {
-      contents.push({ role: 'model', parts: [{ text: row.content }] });
-    }
-  }
-  return contents;
 }
 
 function deriveTitle(content: string): string {
