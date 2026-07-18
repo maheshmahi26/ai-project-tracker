@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { getQueueToken } from '@nestjs/bullmq';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';
@@ -52,6 +53,21 @@ import { NotificationsListener } from '../modules/notifications/notifications.li
 import { DashboardService } from '../modules/dashboard/dashboard.service';
 import { DashboardRepository } from '../modules/dashboard/dashboard.repository';
 import { DashboardCache } from '../modules/dashboard/dashboard.cache';
+import { DocumentsService } from '../modules/documents/documents.service';
+import {
+  DocumentsRepository,
+  MongoDocumentsRepository,
+} from '../modules/documents/documents.repository';
+import {
+  EmbeddingsRepository,
+  MongoEmbeddingsRepository,
+} from '../modules/documents/embeddings.repository';
+import { DocumentIndexer } from '../modules/documents/indexing/document-indexer.service';
+import { DocEntity, DocumentSchema } from '../modules/documents/schemas/document.schema';
+import { Embedding, EmbeddingSchema } from '../modules/documents/schemas/embedding.schema';
+import { DOCUMENT_QUEUE } from '../modules/documents/documents.constants';
+import { QdrantClient } from '../infra/qdrant/qdrant.client';
+import { FakeQdrantClient } from './fake-qdrant';
 import { UsersService } from '../modules/users/users.service';
 import { GeminiClient } from '../infra/ai/gemini.client';
 import { FakeGeminiClient } from './fake-gemini';
@@ -119,6 +135,11 @@ const testEnv: Partial<Env> = {
   WEB_APP_URL: 'http://localhost:5173',
   GEMINI_MODEL: 'gemini-test',
   GEMINI_EMBED_MODEL: 'text-embedding-004',
+  GEMINI_EMBED_DIM: 768,
+  QDRANT_COLLECTION: 'ai_projectos_test',
+  RAG_CHUNK_TOKENS: 120,
+  RAG_CHUNK_OVERLAP_TOKENS: 20,
+  RAG_EMBED_BATCH: 8,
   AI_MAX_ITERATIONS: 3,
   AI_TOKEN_BUDGET: 24000,
   AI_NODE_TIMEOUT_MS: 45000,
@@ -135,6 +156,8 @@ export interface StorageSpy {
   uploads: Array<{ key: string; contentType: string }>;
   downloads: Array<{ key: string; fileName?: string }>;
   deleted: string[];
+  /** Scripted object bytes returned by `getObject` (tests populate by key). */
+  objects: Map<string, Buffer>;
 }
 
 export interface TestContext {
@@ -156,7 +179,10 @@ export interface TestContext {
   agent: AgentService;
   toolRegistry: ToolRegistry;
   resolver: ReferenceResolver;
+  documents: DocumentsService;
+  documentIndexer: DocumentIndexer;
   gemini: FakeGeminiClient;
+  qdrant: FakeQdrantClient;
   mail: MailSpy;
   storage: StorageSpy;
 }
@@ -167,8 +193,10 @@ export interface TestContext {
  */
 export async function createTestContext(): Promise<TestContext | null> {
   const mail: MailSpy = { sent: [], notifications: [] };
-  const storageSpy: StorageSpy = { uploads: [], downloads: [], deleted: [] };
+  const storageSpy: StorageSpy = { uploads: [], downloads: [], deleted: [], objects: new Map() };
   const fakeGemini = new FakeGeminiClient();
+  const fakeQdrant = new FakeQdrantClient();
+  const fakeDocumentQueue = { add: async () => undefined };
   const fakeStorage: StorageService = {
     urlTtlSec: 900,
     presignUpload: async ({ key, contentType }) => {
@@ -178,6 +206,11 @@ export async function createTestContext(): Promise<TestContext | null> {
     presignDownload: async ({ key, fileName }) => {
       storageSpy.downloads.push({ key, fileName });
       return `https://storage.test/download/${encodeURIComponent(key)}`;
+    },
+    getObject: async (key) => {
+      const bytes = storageSpy.objects.get(key);
+      if (!bytes) throw new Error(`No scripted object for key ${key}`);
+      return bytes;
     },
     deleteObject: async (key) => {
       storageSpy.deleted.push(key);
@@ -212,6 +245,8 @@ export async function createTestContext(): Promise<TestContext | null> {
           { name: ChatSession.name, schema: ChatSessionSchema },
           { name: ChatMessage.name, schema: ChatMessageSchema },
           { name: AiExecution.name, schema: AiExecutionSchema },
+          { name: DocEntity.name, schema: DocumentSchema },
+          { name: Embedding.name, schema: EmbeddingSchema },
         ]),
       ],
       providers: [
@@ -270,6 +305,12 @@ export async function createTestContext(): Promise<TestContext | null> {
           ],
         },
         { provide: GeminiClient, useValue: fakeGemini },
+        { provide: QdrantClient, useValue: fakeQdrant },
+        DocumentsService,
+        DocumentIndexer,
+        { provide: DocumentsRepository, useClass: MongoDocumentsRepository },
+        { provide: EmbeddingsRepository, useClass: MongoEmbeddingsRepository },
+        { provide: getQueueToken(DOCUMENT_QUEUE), useValue: fakeDocumentQueue },
         { provide: ChatSessionsRepository, useClass: MongoChatSessionsRepository },
         { provide: ChatMessagesRepository, useClass: MongoChatMessagesRepository },
         { provide: AiExecutionsRepository, useClass: MongoAiExecutionsRepository },
@@ -339,7 +380,10 @@ export async function createTestContext(): Promise<TestContext | null> {
     agent: module.get(AgentService),
     toolRegistry: module.get(ToolRegistry),
     resolver: module.get(ReferenceResolver),
+    documents: module.get(DocumentsService),
+    documentIndexer: module.get(DocumentIndexer),
     gemini: fakeGemini,
+    qdrant: fakeQdrant,
     mail,
     storage: storageSpy,
   };

@@ -24,6 +24,8 @@ export abstract class StorageService {
   abstract presignUpload(input: PresignUploadInput): Promise<string>;
   /** Returns a short-lived presigned GET URL for private object download. */
   abstract presignDownload(input: PresignDownloadInput): Promise<string>;
+  /** Reads the full object into memory (used by the RAG indexer worker). */
+  abstract getObject(key: string): Promise<Buffer>;
   /** Best-effort object deletion (never throws into the request path). */
   abstract deleteObject(key: string): Promise<void>;
   /** Seconds a presigned URL stays valid. */

@@ -8,6 +8,7 @@ import { AppConfigModule, AppConfigService } from './config/config.module';
 import { DatabaseModule } from './infra/database/database.module';
 import { RedisModule, RedisService } from './infra/redis/redis.module';
 import { QueueModule } from './infra/queue/queue.module';
+import { QdrantModule } from './infra/qdrant/qdrant.module';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -31,6 +32,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { MailModule } from './modules/mail/mail.module';
 import { TimelineModule } from './modules/timeline/timeline.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { UsersModule } from './modules/users/users.module';
 import { AiModule } from './modules/ai/ai.module';
 
@@ -42,6 +44,7 @@ import { AiModule } from './modules/ai/ai.module';
     RedisModule,
     DatabaseModule,
     QueueModule,
+    QdrantModule,
     // Global rate limiting backed by Redis (100 req / 60s by default, tunable via
     // RATE_LIMIT_TTL_MS / RATE_LIMIT_MAX). Stricter per-route limits layer on top.
     ThrottlerModule.forRootAsync({
@@ -69,6 +72,7 @@ import { AiModule } from './modules/ai/ai.module';
     FilesModule,
     TimelineModule,
     DashboardModule,
+    DocumentsModule,
     AiModule,
   ],
   controllers: [AppController],

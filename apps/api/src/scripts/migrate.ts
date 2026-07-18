@@ -17,9 +17,8 @@ import { AppConfigService } from '../config/config.module';
  * See specs/09-devops-deployment.md → "Migrations".
  */
 
-// Qdrant collection contract (checked in as code, created if missing).
-const QDRANT_COLLECTION = 'ai_projectos_chunks';
-const EMBEDDING_DIM = 768; // Gemini text-embedding-004
+// Qdrant collection contract. Name + vector dim come from config so they always
+// match the Gemini embedding output the ingestion worker upserts (TASK-20).
 const QDRANT_DISTANCE = 'Cosine';
 
 async function run(): Promise<void> {
@@ -40,8 +39,14 @@ async function run(): Promise<void> {
       logger.log(`  ✓ ${name}`);
     }
 
-    // 2) Qdrant collection bootstrap (placeholder; populated in TASK-20).
-    await ensureQdrantCollection(config.get('QDRANT_URL'), config.get('QDRANT_API_KEY'), logger);
+    // 2) Qdrant collection bootstrap (idempotent; points written by the worker).
+    await ensureQdrantCollection(
+      config.get('QDRANT_URL'),
+      config.get('QDRANT_API_KEY'),
+      config.get('QDRANT_COLLECTION'),
+      config.get('GEMINI_EMBED_DIM'),
+      logger,
+    );
 
     logger.log('Migration / bootstrap complete.');
   } finally {
@@ -52,28 +57,30 @@ async function run(): Promise<void> {
 async function ensureQdrantCollection(
   baseUrl: string,
   apiKey: string | undefined,
+  collection: string,
+  embeddingDim: number,
   logger: Logger,
 ): Promise<void> {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
     ...(apiKey ? { 'api-key': apiKey } : {}),
   };
-  const url = `${baseUrl.replace(/\/$/, '')}/collections/${QDRANT_COLLECTION}`;
+  const url = `${baseUrl.replace(/\/$/, '')}/collections/${collection}`;
 
   try {
     const existing = await fetch(url, { headers });
     if (existing.ok) {
-      logger.log(`Qdrant collection '${QDRANT_COLLECTION}' already exists.`);
+      logger.log(`Qdrant collection '${collection}' already exists.`);
       return;
     }
     const res = await fetch(url, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ vectors: { size: EMBEDDING_DIM, distance: QDRANT_DISTANCE } }),
+      body: JSON.stringify({ vectors: { size: embeddingDim, distance: QDRANT_DISTANCE } }),
     });
     if (!res.ok) throw new Error(`create returned ${res.status}: ${await res.text()}`);
     logger.log(
-      `Created Qdrant collection '${QDRANT_COLLECTION}' (dim=${EMBEDDING_DIM}, ${QDRANT_DISTANCE}).`,
+      `Created Qdrant collection '${collection}' (dim=${embeddingDim}, ${QDRANT_DISTANCE}).`,
     );
   } catch (err) {
     // Non-fatal: RAG is not live until TASK-20, so a missing Qdrant must not

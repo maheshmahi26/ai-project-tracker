@@ -67,6 +67,8 @@ export const PERMISSIONS = [
   'project:archive',
   'project:delete',
   'sprint:manage',
+  'document:create',
+  'document:delete',
   'export',
   'manage:users',
   'manage:org',
@@ -92,9 +94,19 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'project:archive',
     'project:delete',
     'sprint:manage',
+    'document:create',
+    'document:delete',
     'export',
   ],
-  developer: ['read', 'task:create', 'task:update', 'task:delete', 'task:assign'],
+  developer: [
+    'read',
+    'task:create',
+    'task:update',
+    'task:delete',
+    'task:assign',
+    'document:create',
+    'document:delete',
+  ],
   viewer: ['read'],
 };
 
@@ -676,6 +688,79 @@ export interface FileDTO {
   mimeType: string;
   sizeBytes: number;
   storageKey: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Documents (RAG source files)
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Parseable source formats for the RAG ingestion pipeline. */
+export const DOCUMENT_SOURCE_TYPES = ['pdf', 'docx', 'md', 'txt'] as const;
+export const documentSourceTypeSchema = z.enum(DOCUMENT_SOURCE_TYPES);
+export type DocumentSourceType = z.infer<typeof documentSourceTypeSchema>;
+
+/** Ingestion lifecycle: uploaded → processing → indexed | failed. */
+export const DOCUMENT_STATUSES = ['uploaded', 'processing', 'indexed', 'failed'] as const;
+export const documentStatusSchema = z.enum(DOCUMENT_STATUSES);
+export type DocumentStatus = z.infer<typeof documentStatusSchema>;
+
+/** MIME → source type, so the client/server agree on how to parse an upload. */
+export const DOCUMENT_MIME_TO_SOURCE: Record<string, DocumentSourceType> = {
+  'application/pdf': 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'text/markdown': 'md',
+  'text/plain': 'txt',
+};
+
+export function documentSourceForMime(mime: string): DocumentSourceType | null {
+  return DOCUMENT_MIME_TO_SOURCE[mime] ?? null;
+}
+
+export const presignDocumentSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z
+    .string()
+    .trim()
+    .refine((m) => documentSourceForMime(m) !== null, 'Unsupported document type (PDF/DOCX/MD/TXT)'),
+  sizeBytes: z.number().int().positive().max(FILE_MAX_BYTES),
+  projectId: objectIdSchema.optional(),
+});
+export type PresignDocumentInput = z.infer<typeof presignDocumentSchema>;
+
+export const confirmDocumentSchema = z.object({
+  storageKey: z.string().trim().min(1).max(500),
+  title: z.string().trim().min(1).max(255),
+  mimeType: z
+    .string()
+    .trim()
+    .refine((m) => documentSourceForMime(m) !== null, 'Unsupported document type (PDF/DOCX/MD/TXT)'),
+  sizeBytes: z.number().int().positive().max(FILE_MAX_BYTES),
+  projectId: objectIdSchema.optional(),
+});
+export type ConfirmDocumentInput = z.infer<typeof confirmDocumentSchema>;
+
+export const listDocumentsQuerySchema = z.object({
+  status: documentStatusSchema.optional(),
+  projectId: objectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+});
+export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;
+
+export interface DocumentDTO {
+  id: string;
+  orgId: string;
+  uploaderId: string;
+  projectId?: string | null;
+  title: string;
+  sourceType: DocumentSourceType;
+  storageKey: string;
+  sizeBytes: number;
+  status: DocumentStatus;
+  chunkCount: number;
+  error?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -26,6 +26,13 @@ export const envSchema = z.object({
   // Qdrant (vector DB for RAG)
   QDRANT_URL: z.string().url().default('http://localhost:6333'),
   QDRANT_API_KEY: z.string().optional(),
+  // Vector collection name — must match the migration bootstrap + embed dim.
+  QDRANT_COLLECTION: z.string().default('ai_projectos_chunks'),
+
+  // RAG ingestion tuning (recursive chunk splitter + embedding batch size).
+  RAG_CHUNK_TOKENS: z.coerce.number().int().min(128).max(2000).default(700),
+  RAG_CHUNK_OVERLAP_TOKENS: z.coerce.number().int().min(0).max(500).default(100),
+  RAG_EMBED_BATCH: z.coerce.number().int().min(1).max(100).default(32),
 
   // Object storage (MinIO in dev — S3-compatible; Cloudflare R2 in prod)
   STORAGE_ENDPOINT: z.string().optional(),

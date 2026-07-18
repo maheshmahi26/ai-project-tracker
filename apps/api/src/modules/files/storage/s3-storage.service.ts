@@ -60,6 +60,13 @@ export class S3StorageService extends StorageService {
     return getSignedUrl(this.client, command, { expiresIn: this.urlTtlSec });
   }
 
+  async getObject(key: string): Promise<Buffer> {
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    if (!res.Body) throw new Error(`Object ${key} has no body`);
+    const bytes = await res.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
   async deleteObject(key: string): Promise<void> {
     try {
       await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
