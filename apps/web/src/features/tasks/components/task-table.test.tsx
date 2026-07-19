@@ -26,6 +26,7 @@ function task(overrides: Partial<TaskDTO> = {}): TaskDTO {
     projectId: 'p1',
     key: 'MOB-1',
     title: 'Build login',
+    type: 'task',
     status: 'todo',
     priority: 'medium',
     reporterId: 'u1',

@@ -10,6 +10,7 @@ import {
   type PriorityDistributionDTO,
   type ProjectProgressDTO,
   type TasksPerUserDTO,
+  type UsersByRoleDTO,
   type VelocityPointDTO,
 } from '@ai-projectos/shared';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -82,5 +83,12 @@ export class DashboardController {
   @ApiOperation({ summary: 'Completion percentage per project' })
   projectProgress(@CurrentOrg() org: OrgContext): Promise<ProjectProgressDTO[]> {
     return this.dashboard.projectProgress(org.orgId);
+  }
+
+  @Get('users-by-role')
+  @Permissions('read')
+  @ApiOperation({ summary: 'Active member counts grouped by role' })
+  usersByRole(@CurrentOrg() org: OrgContext): Promise<UsersByRoleDTO> {
+    return this.dashboard.usersByRole(org.orgId);
   }
 }

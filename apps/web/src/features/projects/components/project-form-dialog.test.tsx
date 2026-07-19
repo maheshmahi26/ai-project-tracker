@@ -11,6 +11,10 @@ vi.mock('../hooks/use-projects', () => ({
   useUpdateProject: () => ({ mutateAsync: updateMutate, isPending: false }),
 }));
 
+vi.mock('@/hooks/use-members', () => ({
+  useMembers: () => ({ members: [], isLoading: false }),
+}));
+
 describe('ProjectFormDialog', () => {
   beforeEach(() => {
     createMutate.mockClear();

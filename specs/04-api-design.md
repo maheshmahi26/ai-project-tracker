@@ -80,10 +80,14 @@ GET    /orgs/:id
 PATCH  /orgs/:id
 DELETE /orgs/:id                # soft delete (admin)
 GET    /orgs/:id/members
-POST   /orgs/:id/members        # invite
+POST   /orgs/:id/members        # invite / provision (admin, manage:users)
 PATCH  /orgs/:id/members/:userId   # change role
-DELETE /orgs/:id/members/:userId
+DELETE /orgs/:id/members/:userId   # remove member (admin)
 ```
+> Admins can create and remove members from the UI or via the AI assistant
+> (single or bulk). The same `OrganizationsService` use cases back both paths, so
+> validation and auditing are identical. Assignable member roles are
+> `manager | developer | tester` (admins are never provisioned through this path).
 
 ### Projects
 ```
@@ -155,6 +159,7 @@ GET    /dashboard/burndown?sprintId=
 GET    /dashboard/tasks-per-user
 GET    /dashboard/priority-distribution
 GET    /dashboard/project-progress
+GET    /dashboard/users-by-role   # active member counts per role (team stats)
 GET    /reports/weekly?projectId=
 ```
 

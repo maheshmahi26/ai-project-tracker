@@ -1,5 +1,16 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, FolderKanban } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bug,
+  CheckCircle2,
+  Clock,
+  Code2,
+  FolderKanban,
+  ShieldCheck,
+  UserCog,
+  Users,
+} from 'lucide-react';
+import type { Role } from '@ai-projectos/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartFrame } from '@/components/charts/chart-frame';
@@ -10,6 +21,7 @@ import {
   usePriorityDistribution,
   useProjectProgress,
   useTasksPerUser,
+  useUsersByRole,
   useVelocity,
 } from '../hooks/use-dashboard';
 import { useSprints } from '@/features/sprints/hooks/use-sprints';
@@ -140,6 +152,56 @@ export function ProjectProgressWidget(): React.JSX.Element {
         emptyLabel="No projects yet."
       >
         {data && <ProjectProgressChart data={data} />}
+      </WidgetState>
+    </ChartFrame>
+  );
+}
+
+const ROLE_META: Record<Role, { label: string; icon: typeof Users; className: string }> = {
+  admin: { label: 'Admins', icon: ShieldCheck, className: 'text-purple-600 dark:text-purple-400' },
+  manager: { label: 'Managers', icon: UserCog, className: 'text-amber-600 dark:text-amber-400' },
+  developer: { label: 'Developers', icon: Code2, className: 'text-blue-600 dark:text-blue-400' },
+  tester: { label: 'Testers', icon: Bug, className: 'text-emerald-600 dark:text-emerald-400' },
+};
+
+const TEAM_ROLE_ORDER: Role[] = ['manager', 'developer', 'tester', 'admin'];
+
+export function TeamByRoleWidget(): React.JSX.Element {
+  const { data, isLoading, isError } = useUsersByRole();
+  const empty = !data || data.total === 0;
+
+  return (
+    <ChartFrame title="Team by role">
+      <WidgetState
+        isLoading={isLoading}
+        isError={isError}
+        isEmpty={empty}
+        emptyLabel="No members yet."
+      >
+        {data && (
+          <div className="grid grid-cols-2 gap-3">
+            {TEAM_ROLE_ORDER.map((role) => {
+              const meta = ROLE_META[role];
+              const Icon = meta.icon;
+              return (
+                <div
+                  key={role}
+                  className="flex items-center gap-3 rounded-lg border p-3"
+                >
+                  <span className="flex size-9 items-center justify-center rounded-full bg-muted">
+                    <Icon className={`size-4 ${meta.className}`} />
+                  </span>
+                  <div>
+                    <div className="text-lg font-semibold leading-none">
+                      {data.byRole[role] ?? 0}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{meta.label}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </WidgetState>
     </ChartFrame>
   );

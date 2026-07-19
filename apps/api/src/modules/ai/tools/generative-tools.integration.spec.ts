@@ -149,15 +149,15 @@ describe('AI generative tools (integration)', () => {
     expect(c.gemini.jsonCalls).toHaveLength(0);
   });
 
-  maybe('blocks a viewer from committing a plan (sprint:manage)', async () => {
+  maybe('blocks a tester from committing a plan (sprint:manage)', async () => {
     const c = ctx!;
-    const setup = await setupOrgWithAdmin(c, 'Gen Viewer Org');
+    const setup = await setupOrgWithAdmin(c, 'Gen Tester Org');
     const res = await run(
       c,
       setup,
       'applySprintPlan',
       { project: 'AUTH', plan: { name: 'S', goal: '', durationDays: 14, tasks: [{ title: 't', priority: 'medium' }] }, confirm: true },
-      'viewer',
+      'tester',
       'deadbeefdeadbeefdeadbeef',
     );
     expect(res.ok).toBe(false);

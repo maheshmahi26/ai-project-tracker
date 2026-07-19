@@ -83,25 +83,27 @@ describe('AI action tools (integration)', () => {
     expect(created?.actorType).toBe('ai');
   });
 
-  maybe('blocks a viewer via requiredPermission (no escalation)', async () => {
+  maybe('blocks a developer via requiredPermission (no escalation)', async () => {
     const c = ctx!;
-    const setup = await setupOrgWithAdmin(c, 'Viewer Org');
-    await createProject(c, setup.org.id, setup.admin.userId, { name: 'Auth', key: 'AUTH' });
-    const viewer = await createMember(c, setup.org.id, setup.admin.userId, { role: 'viewer' });
+    const setup = await setupOrgWithAdmin(c, 'Developer Org');
+    const developer = await createMember(c, setup.org.id, setup.admin.userId, { role: 'developer' });
 
+    // Developers cannot create projects (project:create is admin/manager only).
     const res = await run(
       c,
       setup,
-      'createTask',
-      { project: 'AUTH', title: 'Should not be created' },
-      'viewer',
-      viewer.userId,
+      'createProject',
+      { name: 'Should not be created' },
+      'developer',
+      developer.userId,
     );
 
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('PERMISSION_DENIED');
-    // createTask is not even offered to a viewer's model.
-    expect(c.toolRegistry.functionDeclarations('viewer').map((d) => d.name)).not.toContain('createTask');
+    // createProject is not even offered to a developer's model.
+    expect(c.toolRegistry.functionDeclarations('developer').map((d) => d.name)).not.toContain(
+      'createProject',
+    );
   });
 
   maybe('disambiguates an ambiguous assignee name', async () => {

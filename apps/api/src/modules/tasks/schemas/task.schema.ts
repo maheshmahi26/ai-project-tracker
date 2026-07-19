@@ -40,6 +40,14 @@ export class Task {
   @Prop({
     type: String,
     required: true,
+    enum: ['story', 'task', 'bug'],
+    default: 'task',
+  })
+  type!: 'story' | 'task' | 'bug';
+
+  @Prop({
+    type: String,
+    required: true,
     enum: ['backlog', 'todo', 'in_progress', 'in_review', 'done'],
     default: 'backlog',
   })

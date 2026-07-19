@@ -9,9 +9,21 @@ import { z } from 'zod';
 export const APP_NAME = 'AI ProjectOS';
 
 /** Organization roles (per-membership). See specs/07-security-rbac.md. */
-export const ROLES = ['admin', 'manager', 'developer', 'viewer'] as const;
+export const ROLES = ['admin', 'manager', 'developer', 'tester'] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
+
+/**
+ * Roles that may be assigned to a task. Only individual contributors
+ * (developers and testers) can own task work. See specs/07-security-rbac.md.
+ */
+export const ASSIGNABLE_ROLES = ['developer', 'tester'] as const;
+export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
+
+/** True if a member with `role` may be assigned to a task. */
+export function isAssignableRole(role: Role): role is AssignableRole {
+  return (ASSIGNABLE_ROLES as readonly Role[]).includes(role);
+}
 
 /** Standard success/error envelopes. See specs/04-api-design.md. */
 export interface ApiMeta {
@@ -107,7 +119,16 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'document:create',
     'document:delete',
   ],
-  viewer: ['read'],
+  // Testers have the same reach as developers (they own and update task work).
+  tester: [
+    'read',
+    'task:create',
+    'task:update',
+    'task:delete',
+    'task:assign',
+    'document:create',
+    'document:delete',
+  ],
 };
 
 /** True if `role` grants `permission`. */
@@ -194,7 +215,7 @@ export const inviteMemberSchema = z.object({
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 
 /** Roles an admin can assign when creating a user (admin is intentionally excluded). */
-export const nonAdminRoleSchema = z.enum(['manager', 'developer', 'viewer']);
+export const nonAdminRoleSchema = z.enum(['manager', 'developer', 'tester']);
 export type NonAdminRole = z.infer<typeof nonAdminRoleSchema>;
 
 /** Admin creates a user directly with a temporary, admin-typed password. */
@@ -205,6 +226,12 @@ export const createMemberSchema = z.object({
   role: nonAdminRoleSchema,
 });
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;
+
+/** Bulk admin user creation (used by the AI assistant + admin tooling). */
+export const bulkCreateMembersSchema = z.object({
+  members: z.array(createMemberSchema).min(1).max(50),
+});
+export type BulkCreateMembersInput = z.infer<typeof bulkCreateMembersSchema>;
 
 /** Page-based query for the admin members table. */
 export const memberListQuerySchema = z.object({
@@ -300,6 +327,12 @@ const isoDateSchema = z
   .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
 
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id');
+
+/** Bulk admin user removal by userId (used by the AI assistant + admin tooling). */
+export const bulkRemoveMembersSchema = z.object({
+  userIds: z.array(objectIdSchema).min(1).max(50),
+});
+export type BulkRemoveMembersInput = z.infer<typeof bulkRemoveMembersSchema>;
 
 export const createProjectSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -416,12 +449,18 @@ export const TASK_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
 export const taskPrioritySchema = z.enum(TASK_PRIORITIES);
 export type TaskPriority = z.infer<typeof taskPrioritySchema>;
 
+/** Work item type shown with an icon on cards. See specs/03-database-schema.md §5. */
+export const TASK_TYPES = ['story', 'task', 'bug'] as const;
+export const taskTypeSchema = z.enum(TASK_TYPES);
+export type TaskType = z.infer<typeof taskTypeSchema>;
+
 const storyPointsSchema = z.number().int().min(0).max(100);
 
 export const createTaskSchema = z.object({
   projectId: objectIdSchema,
   title: z.string().trim().min(1).max(300),
   description: z.string().trim().max(20000).optional(),
+  type: taskTypeSchema.optional(),
   status: taskStatusSchema.optional(),
   priority: taskPrioritySchema.optional(),
   assigneeId: objectIdSchema.optional(),
@@ -441,6 +480,7 @@ export const updateTaskSchema = z
   .object({
     title: z.string().trim().min(1).max(300),
     description: z.string().trim().max(20000).nullable(),
+    type: taskTypeSchema,
     status: taskStatusSchema,
     priority: taskPrioritySchema,
     assigneeId: objectIdSchema.nullable(),
@@ -469,6 +509,7 @@ export type MoveTaskInput = z.infer<typeof moveTaskSchema>;
 /** Patch applied to every id in a bulk-update. */
 export const bulkTaskPatchSchema = z
   .object({
+    type: taskTypeSchema,
     status: taskStatusSchema,
     priority: taskPrioritySchema,
     assigneeId: objectIdSchema.nullable(),
@@ -524,8 +565,11 @@ export interface TaskDTO {
   sprintId?: string | null;
   key: string;
   parentId?: string | null;
+  /** Human key of the parent task (e.g. "AUTH-12"), populated for subtasks. */
+  parentKey?: string | null;
   title: string;
   description?: string | null;
+  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   assigneeId?: string | null;
@@ -877,6 +921,12 @@ export interface DashboardOverviewDTO {
   };
   sprints: { total: number; planned: number; active: number; completed: number };
   points: { committed: number; completed: number };
+}
+
+/** Count of active members per role, for the dashboard "Team by role" widget. */
+export interface UsersByRoleDTO {
+  total: number;
+  byRole: Record<Role, number>;
 }
 
 export interface VelocityPointDTO {

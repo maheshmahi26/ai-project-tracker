@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { ProjectsModule } from '../projects/projects.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
@@ -12,6 +13,7 @@ import { Comment, CommentSchema } from './schemas/comment.schema';
   imports: [
     OrganizationsModule,
     TasksModule,
+    ProjectsModule,
     NotificationsModule,
     MongooseModule.forFeature([{ name: Comment.name, schema: CommentSchema }]),
   ],

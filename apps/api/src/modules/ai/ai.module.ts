@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppConfigModule } from '../../config/config.module';
 import { AiInfraModule } from '../../infra/ai/ai-infra.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { OrganizationsService } from '../organizations/organizations.service';
 import { UsersModule } from '../users/users.module';
 import { UsersService } from '../users/users.service';
 import { ProjectsModule } from '../projects/projects.module';
@@ -33,6 +34,7 @@ import { AI_TOOLS, ToolRegistrar } from './tools/tool-registrar';
 import { ReferenceResolver } from './tools/reference-resolver';
 import { createWhoAmITool } from './tools/who-am-i.tool';
 import { createTaskTools } from './tools/task-tools';
+import { createUserTools } from './tools/user-tools';
 import { createProjectTools } from './tools/project-tools';
 import { createSprintTools } from './tools/sprint-tools';
 import { createCollabTools } from './tools/collab-tools';
@@ -102,9 +104,11 @@ import {
         rag: RagService,
         documents: DocumentsRepository,
         memoryResolver: MemoryResolver,
+        organizations: OrganizationsService,
       ) => [
         createWhoAmITool(users),
         ...createTaskTools(tasks, resolver),
+        ...createUserTools(organizations, resolver),
         ...createProjectTools(projects, resolver),
         ...createSprintTools(sprints, tasks, resolver),
         ...createCollabTools(comments, labels, resolver),
@@ -125,6 +129,7 @@ import {
         RagService,
         DocumentsRepository,
         MemoryResolver,
+        OrganizationsService,
       ],
     },
     { provide: ChatSessionsRepository, useClass: MongoChatSessionsRepository },

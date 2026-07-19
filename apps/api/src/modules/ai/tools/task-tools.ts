@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   taskPrioritySchema,
   taskStatusSchema,
+  taskTypeSchema,
   type BulkUpdateTasksInput,
   type CreateTaskInput,
   type ListTasksQuery,
@@ -31,7 +32,8 @@ export function createTaskTools(tasks: TasksService, resolver: ReferenceResolver
     name: 'createTask',
     description:
       'Create a task in a project. Reference the project by its key (e.g. "AUTH"), name, or id, ' +
-      'and the assignee by name, email, or id.',
+      'and the assignee by name, email, or id. Only members with the developer or tester role can ' +
+      'be assigned. Optionally set type to story, task, or bug (defaults to task).',
     requiredPermission: 'task:create',
     inputSchema: createTaskInput,
     outputSchema: taskSummarySchema,
@@ -47,6 +49,7 @@ export function createTaskTools(tasks: TasksService, resolver: ReferenceResolver
         projectId,
         title: input.title,
         description: input.description,
+        type: input.type,
         status: input.status,
         priority: input.priority,
         assigneeId,
@@ -76,6 +79,7 @@ export function createTaskTools(tasks: TasksService, resolver: ReferenceResolver
       const patch: UpdateTaskInput = {};
       if (input.title !== undefined) patch.title = input.title;
       if (input.description !== undefined) patch.description = input.description;
+      if (input.type !== undefined) patch.type = input.type;
       if (input.status !== undefined) patch.status = input.status;
       if (input.priority !== undefined) patch.priority = input.priority;
       if (input.assignee !== undefined) {
@@ -97,7 +101,7 @@ export function createTaskTools(tasks: TasksService, resolver: ReferenceResolver
     name: 'assignTask',
     description:
       'Assign a task to a member (by name, email, or id) or pass assignee=null to unassign. ' +
-      'Reference the task by key or id.',
+      'Only developers and testers can be assigned. Reference the task by key or id.',
     requiredPermission: 'task:assign',
     inputSchema: assignTaskInput,
     outputSchema: taskSummarySchema,
@@ -204,6 +208,7 @@ export function createTaskTools(tasks: TasksService, resolver: ReferenceResolver
 
       const p = input.patch;
       const patch: BulkUpdateTasksInput['patch'] = {};
+      if (p.type !== undefined) patch.type = p.type;
       if (p.status !== undefined) patch.status = p.status;
       if (p.priority !== undefined) patch.priority = p.priority;
       if (p.storyPoints !== undefined) patch.storyPoints = p.storyPoints;
@@ -269,6 +274,7 @@ const createTaskInput = z.object({
   project: z.string().describe('Project key, name, or id.'),
   title: z.string().trim().min(1).max(300),
   description: z.string().trim().max(20000).optional(),
+  type: taskTypeSchema.optional().describe('Work item type: story, task, or bug (defaults to task).'),
   status: taskStatusSchema.optional(),
   priority: taskPrioritySchema.optional(),
   assignee: z.string().optional().describe('Member name, email, or id.'),
@@ -283,6 +289,7 @@ const updateTaskInput = z.object({
   task: z.string().describe('Task key or id.'),
   title: z.string().trim().min(1).max(300).optional(),
   description: z.string().trim().max(20000).nullable().optional(),
+  type: taskTypeSchema.optional().describe('Work item type: story, task, or bug.'),
   status: taskStatusSchema.optional(),
   priority: taskPrioritySchema.optional(),
   assignee: z.string().nullable().optional().describe('Member name/email/id, or null to unassign.'),
@@ -326,6 +333,7 @@ const searchTasksOutput = z.object({
 
 const bulkPatchInput = z
   .object({
+    type: taskTypeSchema,
     status: taskStatusSchema,
     priority: taskPrioritySchema,
     assignee: z.string().nullable(),

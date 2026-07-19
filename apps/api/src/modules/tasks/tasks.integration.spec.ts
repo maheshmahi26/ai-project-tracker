@@ -84,12 +84,24 @@ describe('Tasks backend (integration)', () => {
   it('assigns and unassigns a task', async (t) => {
     if (!ctx) return t.skip();
     const { orgId, userId, projectId } = await setup(ctx);
+    // Only developers/testers can be assigned to a task.
+    const dev = await ctx.orgs.createMember(
+      orgId,
+      userId,
+      { email: 'dev-assignee@example.com', name: 'Dev', password: 'password123', role: 'developer' },
+      meta,
+    );
     const task = await ctx.tasks.createTask(orgId, userId, { projectId, title: 'T' }, meta);
 
-    const assigned = await ctx.tasks.assignTask(orgId, userId, task.id, { assigneeId: userId }, meta);
-    expect(assigned.assigneeId).toBe(userId);
+    const assigned = await ctx.tasks.assignTask(orgId, userId, task.id, { assigneeId: dev.userId }, meta);
+    expect(assigned.assigneeId).toBe(dev.userId);
     const unassigned = await ctx.tasks.assignTask(orgId, userId, task.id, { assigneeId: null }, meta);
     expect(unassigned.assigneeId).toBeNull();
+
+    // Non-assignable roles (e.g. the admin owner) are rejected.
+    await expect(
+      ctx.tasks.assignTask(orgId, userId, task.id, { assigneeId: userId }, meta),
+    ).rejects.toThrow(/developers and testers/i);
   });
 
   it('maintains sprint point totals across create / move / delete (transactional)', async (t) => {

@@ -6,14 +6,22 @@ const meta = { requestId: 'test', ip: '127.0.0.1', userAgent: 'vitest' };
 interface Ctx {
   orgId: string;
   userId: string;
+  /** A developer member — the only kind of user that can be assigned tasks. */
+  memberId: string;
   projectId: string;
 }
 
 async function setup(ctx: TestContext, email = 'owner@example.com'): Promise<Ctx> {
   const reg = await ctx.auth.register({ email, password: 'password123', name: email }, meta);
   const org = await ctx.orgs.createOrg(reg.user.id, { name: 'Acme Inc', timezone: 'UTC' }, meta);
+  const member = await ctx.orgs.createMember(
+    org.id,
+    reg.user.id,
+    { email: `dev-${email}`, name: 'Dev', password: 'password123', role: 'developer' },
+    meta,
+  );
   const project = await ctx.projects.createProject(org.id, reg.user.id, { name: 'Auth', key: 'AUTH' }, meta);
-  return { orgId: org.id, userId: reg.user.id, projectId: project.id };
+  return { orgId: org.id, userId: reg.user.id, memberId: member.userId, projectId: project.id };
 }
 
 describe('Dashboard & reports backend (integration)', () => {
@@ -67,24 +75,24 @@ describe('Dashboard & reports backend (integration)', () => {
 
   it('groups tasks per user and by priority', async (t) => {
     if (!ctx) return t.skip();
-    const { orgId, userId, projectId } = await setup(ctx);
+    const { orgId, userId, memberId, projectId } = await setup(ctx);
 
     await ctx.tasks.createTask(
       orgId,
       userId,
-      { projectId, title: 'A', priority: 'high', assigneeId: userId, status: 'done', storyPoints: 3 },
+      { projectId, title: 'A', priority: 'high', assigneeId: memberId, status: 'done', storyPoints: 3 },
       meta,
     );
     await ctx.tasks.createTask(
       orgId,
       userId,
-      { projectId, title: 'B', priority: 'high', assigneeId: userId, status: 'todo' },
+      { projectId, title: 'B', priority: 'high', assigneeId: memberId, status: 'todo' },
       meta,
     );
     await ctx.tasks.createTask(orgId, userId, { projectId, title: 'C', priority: 'low' }, meta);
 
     const perUser = await ctx.dashboard.tasksPerUser(orgId, {});
-    const mine = perUser.find((r) => r.assigneeId === userId);
+    const mine = perUser.find((r) => r.assigneeId === memberId);
     expect(mine).toMatchObject({ total: 2, done: 1, open: 1, points: 3 });
     const unassigned = perUser.find((r) => r.assigneeId === null);
     expect(unassigned?.total).toBe(1);
@@ -167,12 +175,12 @@ describe('Dashboard & reports backend (integration)', () => {
 
   it('builds a weekly report with created/completed counts and contributors', async (t) => {
     if (!ctx) return t.skip();
-    const { orgId, userId, projectId } = await setup(ctx);
+    const { orgId, userId, memberId, projectId } = await setup(ctx);
 
     await ctx.tasks.createTask(
       orgId,
       userId,
-      { projectId, title: 'A', priority: 'urgent', assigneeId: userId, status: 'done' },
+      { projectId, title: 'A', priority: 'urgent', assigneeId: memberId, status: 'done' },
       meta,
     );
     await ctx.tasks.createTask(orgId, userId, { projectId, title: 'B', priority: 'low' }, meta);
@@ -186,7 +194,7 @@ describe('Dashboard & reports backend (integration)', () => {
     expect(report.createdByPriority.urgent).toBe(1);
     expect(report.createdByPriority.low).toBe(1);
     expect(report.activeSprints).toBe(1);
-    expect(report.topContributors[0]).toMatchObject({ assigneeId: userId, done: 1 });
+    expect(report.topContributors[0]).toMatchObject({ assigneeId: memberId, done: 1 });
   });
 
   it('exports tasks as CSV, quoting fields that contain commas', async (t) => {

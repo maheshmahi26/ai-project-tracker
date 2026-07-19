@@ -29,7 +29,7 @@ describe('ToolRegistry', () => {
   it('runs a valid, authorized call', async () => {
     const r = new ToolRegistry();
     r.register(echoTool);
-    const res = await r.execute('echo', { msg: 'hi' }, ctx('viewer'));
+    const res = await r.execute('echo', { msg: 'hi' }, ctx('tester'));
     expect(res).toEqual({ ok: true, data: { echo: 'hi' } });
   });
 
@@ -42,7 +42,7 @@ describe('ToolRegistry', () => {
   it('enforces the required permission', async () => {
     const r = new ToolRegistry();
     r.register({ ...echoTool, name: 'del', requiredPermission: 'project:delete' });
-    const res = await r.execute('del', { msg: 'x' }, ctx('viewer'));
+    const res = await r.execute('del', { msg: 'x' }, ctx('tester'));
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('PERMISSION_DENIED');
   });
@@ -50,7 +50,7 @@ describe('ToolRegistry', () => {
   it('validates arguments before running the handler', async () => {
     const r = new ToolRegistry();
     r.register(echoTool);
-    const res = await r.execute('echo', { wrong: true }, ctx('viewer'));
+    const res = await r.execute('echo', { wrong: true }, ctx('tester'));
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('VALIDATION_ERROR');
     expect(res.error?.details).toBeDefined();
@@ -66,7 +66,7 @@ describe('ToolRegistry', () => {
         throw AppException.notFound('missing');
       },
     });
-    const res = await r.execute('boom', {}, ctx('viewer'));
+    const res = await r.execute('boom', {}, ctx('tester'));
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('NOT_FOUND');
   });
@@ -80,7 +80,7 @@ describe('ToolRegistry', () => {
       outputSchema: z.object({ n: z.number() }),
       handler: async () => ({ n: 'not-a-number' }),
     });
-    const res = await r.execute('bad', {}, ctx('viewer'));
+    const res = await r.execute('bad', {}, ctx('tester'));
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('OUTPUT_INVALID');
   });
@@ -90,7 +90,7 @@ describe('ToolRegistry', () => {
     r.register(echoTool);
     r.register({ ...echoTool, name: 'createProj', requiredPermission: 'project:create' });
 
-    expect(r.functionDeclarations('viewer').map((d) => d.name)).toEqual(['echo']);
+    expect(r.functionDeclarations('tester').map((d) => d.name)).toEqual(['echo']);
     expect(r.toInfo('manager').map((t) => t.name).sort()).toEqual(['createProj', 'echo']);
     expect(r.functionDeclarations('manager')[0]).toMatchObject({
       name: 'echo',

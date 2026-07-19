@@ -12,6 +12,9 @@ vi.mock('../hooks/use-projects', () => ({
   useUpdateProject: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@/hooks/use-can', () => ({ useCan: () => true }));
+vi.mock('@/hooks/use-members', () => ({
+  useMembers: () => ({ members: [], isLoading: false }),
+}));
 vi.mock('../components/project-row-actions', () => ({
   ProjectRowActions: () => null,
 }));

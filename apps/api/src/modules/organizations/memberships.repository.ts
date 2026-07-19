@@ -21,6 +21,8 @@ export abstract class MembershipsRepository {
   abstract updateRole(orgId: string, userId: string, role: Role): Promise<MembershipLean | null>;
   abstract remove(orgId: string, userId: string): Promise<boolean>;
   abstract countByOrgAndRole(orgId: string, role: Role): Promise<number>;
+  /** Count of active members grouped by role (for dashboard team stats). */
+  abstract countActiveByRole(orgId: string): Promise<Array<{ role: Role; count: number }>>;
 }
 
 @Injectable()
@@ -88,5 +90,16 @@ export class MongoMembershipsRepository extends MembershipsRepository {
 
   countByOrgAndRole(orgId: string, role: Role): Promise<number> {
     return this.model.countDocuments({ orgId, role, status: 'active' }).exec();
+  }
+
+  async countActiveByRole(orgId: string): Promise<Array<{ role: Role; count: number }>> {
+    if (!Types.ObjectId.isValid(orgId)) return [];
+    const rows = await this.model
+      .aggregate<{ _id: Role; count: number }>([
+        { $match: { orgId: new Types.ObjectId(orgId), status: 'active' } },
+        { $group: { _id: '$role', count: { $sum: 1 } } },
+      ])
+      .exec();
+    return rows.map((r) => ({ role: r._id, count: r.count }));
   }
 }

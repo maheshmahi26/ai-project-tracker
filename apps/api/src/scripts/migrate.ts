@@ -39,6 +39,29 @@ async function run(): Promise<void> {
       logger.log(`  ✓ ${name}`);
     }
 
+    // 1b) Role rename: the `viewer` role was replaced by `tester`. Migrate any
+    // remaining memberships so they satisfy the new enum. Idempotent.
+    if (connection.modelNames().includes('Membership')) {
+      const res = await connection
+        .model('Membership')
+        .updateMany({ role: 'viewer' }, { $set: { role: 'tester' } })
+        .exec();
+      if (res.modifiedCount > 0) {
+        logger.log(`Migrated ${res.modifiedCount} 'viewer' membership(s) → 'tester'.`);
+      }
+    }
+
+    // 1c) Tasks created before the `type` field default to 'task'. Idempotent.
+    if (connection.modelNames().includes('Task')) {
+      const res = await connection
+        .model('Task')
+        .updateMany({ type: { $exists: false } }, { $set: { type: 'task' } })
+        .exec();
+      if (res.modifiedCount > 0) {
+        logger.log(`Backfilled 'type' on ${res.modifiedCount} task(s).`);
+      }
+    }
+
     // 2) Qdrant collection bootstrap (idempotent; points written by the worker).
     await ensureQdrantCollection(
       config.get('QDRANT_URL'),

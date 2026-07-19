@@ -30,16 +30,16 @@ Google   → OAuth → find/create user → issue access+refresh
 
 ## Authorization — RBAC
 
-Roles are **per-organization** (a user can be Admin in one org, Viewer in another) via `Memberships`.
+Roles are **per-organization** (a user can be Admin in one org, Tester in another) via `Memberships`. There are exactly four roles: **admin, manager, developer, tester**. Testers have the same reach as developers (they own and update task work); the two differ only in intent.
 
 ### Roles → permissions matrix
 
-| Permission | Admin | Manager | Developer | Viewer |
+| Permission | Admin | Manager | Developer | Tester |
 |------------|:----:|:-------:|:---------:|:------:|
 | read (projects/tasks/…) | ✅ | ✅ | ✅ | ✅ |
-| task:create / update | ✅ | ✅ | ✅ | ❌ |
-| task:delete | ✅ | ✅ | ✅* | ❌ |
-| task:assign | ✅ | ✅ | ✅ | ❌ |
+| task:create / update | ✅ | ✅ | ✅ | ✅ |
+| task:delete | ✅ | ✅ | ✅* | ✅* |
+| task:assign | ✅ | ✅ | ✅ | ✅ |
 | project:create / update | ✅ | ✅ | ❌ | ❌ |
 | project:archive / delete | ✅ | ✅ | ❌ | ❌ |
 | sprint:manage | ✅ | ✅ | ❌ | ❌ |
@@ -47,7 +47,18 @@ Roles are **per-organization** (a user can be Admin in one org, Viewer in anothe
 | manage:users (invite/roles) | ✅ | ❌ | ❌ | ❌ |
 | manage:org (settings/delete) | ✅ | ❌ | ❌ | ❌ |
 
-\* Developers may delete tasks they created / are assigned to (policy-checked), not arbitrary ones.
+\* Developers/testers may delete tasks they created / are assigned to (policy-checked), not arbitrary ones.
+
+### Domain invariants enforced in the Application layer
+
+These rules live in the services (so both REST and AI tools inherit them):
+
+- **Task assignment**: only members with the **developer** or **tester** role can be the assignee of a task. Assigning an admin/manager is rejected (`businessRule`). Enforced in `TasksService` for create/update/assign/bulk.
+- **Project manager (lead)**: a project's `leadId` is its single manager. The lead must hold the **manager** role, and a manager can lead **at most one** active project. Enforced in `ProjectsService` for create/update. (Uniqueness is enforced in the service, not a DB index, so pre-existing data is never invalidated — only new writes are blocked.)
+- **Subtasks**: a subtask (a task with `parentId`) cannot itself have subtasks (max depth 1) and defaults to its parent's assignee when created without one.
+- **AI user management**: only admins hold `manage:users`, so the AI user-management tools (`createUser`, `bulkCreateUsers`, `removeUser`, `bulkRemoveUsers`) are only ever offered to and usable by admins.
+
+> Migration note: the former `viewer` role was replaced by `tester`. The idempotent migration (`scripts/migrate.ts`) rewrites any residual `role:'viewer'` membership to `'tester'`.
 
 ### Enforcement layers (defense in depth)
 

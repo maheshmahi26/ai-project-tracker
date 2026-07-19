@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  ROLES,
   TASK_PRIORITIES,
   TASK_STATUSES,
   type BurndownDTO,
@@ -9,14 +10,17 @@ import {
   type ExportTasksQuery,
   type PriorityDistributionDTO,
   type ProjectProgressDTO,
+  type Role,
   type TaskPriority,
   type TaskStatus,
   type TasksPerUserDTO,
+  type UsersByRoleDTO,
   type VelocityPointDTO,
   type WeeklyReportDTO,
   type WeeklyReportQuery,
 } from '@ai-projectos/shared';
 import { AppException } from '../../common/errors/app-exception';
+import { MembershipsRepository } from '../organizations/memberships.repository';
 import { DashboardCache } from './dashboard.cache';
 import { DashboardRepository } from './dashboard.repository';
 
@@ -28,7 +32,27 @@ export class DashboardService {
   constructor(
     private readonly repo: DashboardRepository,
     private readonly cache: DashboardCache,
+    private readonly memberships: MembershipsRepository,
   ) {}
+
+  usersByRole(orgId: string): Promise<UsersByRoleDTO> {
+    return this.cache.wrap(orgId, 'users-by-role', {}, async () => {
+      const rows = await this.memberships.countActiveByRole(orgId);
+      const byRole = ROLES.reduce(
+        (acc, role) => {
+          acc[role] = 0;
+          return acc;
+        },
+        {} as Record<Role, number>,
+      );
+      let total = 0;
+      for (const row of rows) {
+        if (row.role in byRole) byRole[row.role] = row.count;
+        total += row.count;
+      }
+      return { total, byRole } satisfies UsersByRoleDTO;
+    });
+  }
 
   overview(orgId: string, query: DashboardScopeQuery): Promise<DashboardOverviewDTO> {
     return this.cache.wrap(orgId, 'overview', query, async () => {

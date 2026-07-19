@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { initials, useMembers } from '@/hooks/use-members';
-import { PriorityBadge, StatusBadge } from './task-badges';
+import { PriorityBadge, StatusBadge, TaskTypeIcon } from './task-badges';
 import { BulkActionsBar } from './bulk-actions-bar';
 import { useDeleteTask, useInfiniteTasks, useUndoDeleteTask } from '../hooks/use-tasks';
 import type { TaskListParams } from '../api/tasks-api';
@@ -186,8 +186,22 @@ export function TaskTable({
                       className="size-4 cursor-pointer"
                     />
                   </td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{task.key}</td>
-                  <td className="px-3 py-2 font-medium">{task.title}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <TaskTypeIcon type={task.type} />
+                      {task.key}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 font-medium">
+                    <span className="flex flex-col">
+                      <span>{task.title}</span>
+                      {task.parentKey ? (
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          ↳ {task.parentKey}
+                        </span>
+                      ) : null}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">
                     <StatusBadge status={task.status} />
                   </td>

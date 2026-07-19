@@ -29,10 +29,16 @@ describe('useCan', () => {
     expect(result.current).toBe(true);
   });
 
-  it('denies a viewer write permissions', () => {
-    mockActiveOrg.mockReturnValue({ activeOrg: orgWithRole('viewer') });
-    const { result } = renderHook(() => useCan('task:create'));
+  it('denies a tester admin-only permissions', () => {
+    mockActiveOrg.mockReturnValue({ activeOrg: orgWithRole('tester') });
+    const { result } = renderHook(() => useCan('manage:users'));
     expect(result.current).toBe(false);
+  });
+
+  it('grants a tester task:create (same reach as developer)', () => {
+    mockActiveOrg.mockReturnValue({ activeOrg: orgWithRole('tester') });
+    const { result } = renderHook(() => useCan('task:create'));
+    expect(result.current).toBe(true);
   });
 
   it('denies when no active org/role is resolved yet', () => {

@@ -24,6 +24,8 @@ export interface ProjectListParams {
 export abstract class ProjectsRepository {
   abstract findById(orgId: string, id: string, includeDeleted?: boolean): Promise<ProjectLean | null>;
   abstract findByKey(orgId: string, key: string): Promise<ProjectLean | null>;
+  /** Active (non-deleted) project this user currently leads, if any. */
+  abstract findByLead(orgId: string, leadId: string): Promise<ProjectLean | null>;
   abstract create(data: Partial<Project>, session?: ClientSession): Promise<ProjectLean>;
   abstract updateById(
     orgId: string,
@@ -56,6 +58,16 @@ export class MongoProjectsRepository extends ProjectsRepository {
     if (!Types.ObjectId.isValid(orgId)) return Promise.resolve(null);
     return this.model
       .findOne({ orgId, key: key.toUpperCase(), isDeleted: { $ne: true } })
+      .lean<ProjectLean>()
+      .exec();
+  }
+
+  findByLead(orgId: string, leadId: string): Promise<ProjectLean | null> {
+    if (!Types.ObjectId.isValid(orgId) || !Types.ObjectId.isValid(leadId)) {
+      return Promise.resolve(null);
+    }
+    return this.model
+      .findOne({ orgId, leadId, isDeleted: { $ne: true } })
       .lean<ProjectLean>()
       .exec();
   }

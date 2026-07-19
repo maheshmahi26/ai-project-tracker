@@ -77,11 +77,11 @@ Rationale: keep server data in Query (single cache, dedупe, invalidation) and 
 
 ## Key screens
 
-- **App shell**: collapsible sidebar (orgs/projects), top bar (search, notifications, theme, profile), command palette (⌘K).
-- **Board**: drag-and-drop Kanban with optimistic reordering.
-- **Task table**: filter/sort/search/paginate, bulk-select → bulk actions.
-- **Task detail**: rich description (TipTap), comments, subtasks, files, activity.
-- **Dashboard**: velocity, burndown, completed vs pending, per-user, priority distribution, project progress (Recharts) + recent activity.
+- **App shell**: collapsible sidebar (orgs/projects), top bar (search, notifications, theme, profile), command palette (⌘K), and a **floating AI assistant** (bottom-right circular button → compact chat window with session switcher + "expand to full chat").
+- **Board**: drag-and-drop Kanban with optimistic reordering. Cards show a **type icon** (story/task/bug), priority, a **due-date badge** ("Nd left" / "Overdue Nd"), and a **parent chip** for subtasks. Subtasks appear on the board tagged with their parent key.
+- **Task table**: filter/sort/search/paginate, bulk-select → bulk actions; rows show the type icon and a parent hint for subtasks.
+- **Task detail**: rich description (TipTap), comments (inline `@`-mention autocomplete), subtasks (hidden for subtasks themselves), files, activity, plus a "Subtask of PARENT-KEY" link and editable type.
+- **Dashboard**: velocity, burndown, completed vs pending, per-user, priority distribution, project progress, and **team-by-role** counts (Recharts) + recent activity.
 - **Documents**: upload (drag-drop), indexing status, semantic search.
 - **AI Chat** (below).
 
@@ -108,6 +108,8 @@ Features:
 - **Markdown** rendering + **syntax-highlighted code** blocks.
 - **Tool execution visualization**: each tool call is a card showing name → arguments → status → result/error (the transparency feature from [AI spec](./05-ai-agent.md)).
 - **Chat history** (sessions) + **conversation memory** (agent recalls prior turns).
+- **Resume last session**: opening the Assistant tab (or the floating widget) with no explicit session resumes the most recent conversation instead of a blank chat; an explicit "New chat" action is always available.
+- **Floating widget**: the same agent is reachable from anywhere via a bottom-right button — a compact chat window with a session picker and an "expand" control that navigates to the full `/chat` page.
 - **Suggested prompts** contextual to the current project/screen.
 - **Confirm dialogs** in-chat for destructive proposals.
 - Deep links: results (e.g. "AUTH-124") are clickable to the entity.

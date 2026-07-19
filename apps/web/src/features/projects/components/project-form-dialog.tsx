@@ -18,13 +18,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useMembers } from '@/hooks/use-members';
 import { useCreateProject, useUpdateProject } from '../hooks/use-projects';
+
+const selectClass =
+  'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 
 interface FormValues {
   name: string;
   key: string;
   description: string;
   color: string;
+  leadId: string;
   startDate: string;
   targetDate: string;
 }
@@ -35,6 +40,7 @@ function toFormValues(project?: ProjectDTO): FormValues {
     key: project?.key ?? '',
     description: project?.description ?? '',
     color: project?.color ?? '#4f46e5',
+    leadId: project?.leadId ?? '',
     startDate: project?.startDate ? project.startDate.slice(0, 10) : '',
     targetDate: project?.targetDate ? project.targetDate.slice(0, 10) : '',
   };
@@ -55,6 +61,9 @@ export function ProjectFormDialog({
   const create = useCreateProject();
   const update = useUpdateProject();
   const pending = create.isPending || update.isPending;
+  const { members } = useMembers();
+  // A project's manager (lead) must have the manager role.
+  const managers = members.filter((m) => m.role === 'manager');
 
   const {
     register,
@@ -74,6 +83,7 @@ export function ProjectFormDialog({
         name: values.name.trim(),
         description: values.description.trim() ? values.description.trim() : null,
         color: values.color,
+        leadId: values.leadId || null,
         startDate: values.startDate || null,
         targetDate: values.targetDate || null,
       };
@@ -85,6 +95,7 @@ export function ProjectFormDialog({
         key: values.key.trim() ? values.key.trim().toUpperCase() : undefined,
         description: values.description.trim() || undefined,
         color: values.color || undefined,
+        leadId: values.leadId || undefined,
         startDate: values.startDate || undefined,
         targetDate: values.targetDate || undefined,
       };
@@ -162,6 +173,24 @@ export function ProjectFormDialog({
             {errors.description && (
               <p className="text-xs text-destructive">{errors.description.message}</p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="project-lead">
+              Manager <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <select id="project-lead" className={selectClass} {...register('leadId')}>
+              <option value="">No manager</option>
+              {managers.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Only members with the manager role can lead a project, and each manager can lead just
+              one project.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

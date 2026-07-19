@@ -37,7 +37,8 @@ export function useTaskBoard(projectId: string | undefined) {
   const orgId = useOrgStore((s) => s.activeOrgId);
   return useQuery({
     queryKey: projectId ? queryKeys.tasks.board(orgId, projectId) : ['tasks', 'board', 'none'],
-    queryFn: () => tasksApi.list({ projectId, parentId: 'none', sort: 'order', limit: 100 }),
+    // Include subtasks on the board; each card tags its parent via `parentKey`.
+    queryFn: () => tasksApi.list({ projectId, sort: 'order', limit: 100 }),
     enabled: Boolean(projectId),
     select: (page) => page.items,
   });

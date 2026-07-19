@@ -134,20 +134,21 @@ describe('RAG tools (integration)', () => {
     expect(createEvent?.source).toBe('ai');
   });
 
-  maybe('applyGeneratedTasks is blocked for a viewer', async () => {
+  maybe('blocks a tester from a privileged action (no escalation)', async () => {
     const c = ctx!;
     c.gemini.reset();
-    const setup = await setupOrgWithAdmin(c, 'DocTasks Viewer Org');
+    const setup = await setupOrgWithAdmin(c, 'DocTasks Tester Org');
     await createProject(c, setup.org.id, setup.admin.userId, { name: 'Auth', key: 'AUTH' });
-    const viewer = await createMember(c, setup.org.id, setup.admin.userId, { role: 'viewer' });
+    const tester = await createMember(c, setup.org.id, setup.admin.userId, { role: 'tester' });
 
+    // Testers may create/apply tasks, but cannot delete a project (project:delete).
     const res = await run(
       c,
       setup,
-      'applyGeneratedTasks',
-      { project: 'AUTH', tasks: [{ title: 'x', priority: 'medium' }], confirm: true },
-      'viewer',
-      viewer.userId,
+      'deleteProject',
+      { project: 'AUTH', confirm: true },
+      'tester',
+      tester.userId,
     );
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe('PERMISSION_DENIED');

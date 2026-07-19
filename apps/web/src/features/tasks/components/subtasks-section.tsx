@@ -12,7 +12,9 @@ import { useCreateSubtask, useSubtasks, useUpdateTask } from '../hooks/use-tasks
 export function SubtasksSection({ parent }: { parent: TaskDTO }): React.JSX.Element {
   const navigate = useNavigate();
   const canUpdate = useCan('task:update');
-  const canCreate = useCan('task:create');
+  // A subtask cannot have its own subtasks (max depth 1).
+  const isSubtask = Boolean(parent.parentId);
+  const canCreate = useCan('task:create') && !isSubtask;
   const { data: subtasks, isLoading } = useSubtasks(parent.id);
   const create = useCreateSubtask(parent.id);
   const update = useUpdateTask();
@@ -81,6 +83,12 @@ export function SubtasksSection({ parent }: { parent: TaskDTO }): React.JSX.Elem
             </li>
           ))}
         </ul>
+      )}
+
+      {isSubtask && (
+        <p className="text-xs text-muted-foreground">
+          This is a subtask, so it can't have its own subtasks.
+        </p>
       )}
 
       {canCreate && (

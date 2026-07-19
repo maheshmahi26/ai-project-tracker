@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Types } from 'mongoose';
 import type {
   CommentDTO,
@@ -13,17 +13,21 @@ import { DomainEventBus } from '../events/domain-event-bus';
 import type { DomainEventName } from '../events/domain-event';
 import { MembershipsRepository } from '../organizations/memberships.repository';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ProjectsRepository } from '../projects/projects.repository';
 import { TasksRepository, type TaskLean } from '../tasks/tasks.repository';
 import { CommentsRepository, type CommentLean } from './comments.repository';
 import { toCommentDTO } from './comments.mapper';
 
 @Injectable()
 export class CommentsService {
+  private readonly logger = new Logger(CommentsService.name);
+
   constructor(
     private readonly repo: CommentsRepository,
     private readonly tasks: TasksRepository,
     private readonly memberships: MembershipsRepository,
     private readonly notifications: NotificationsService,
+    private readonly projects: ProjectsRepository,
     private readonly events: DomainEventBus,
   ) {}
 
@@ -56,6 +60,31 @@ export class CommentsService {
         entity: { type: 'comment', id: comment._id.toString() },
         excludeUserId: actorId,
       });
+    }
+
+    // Also notify the task's assignee and the project manager (deduped against
+    // the mention list + the comment author). Never fail the mutation over this.
+    try {
+      const followers = new Set<string>();
+      if (task.assigneeId) followers.add(task.assigneeId.toString());
+      const project = await this.projects.findById(orgId, task.projectId.toString());
+      if (project?.leadId) followers.add(project.leadId.toString());
+      for (const m of mentions) followers.delete(m);
+      followers.delete(actorId);
+
+      if (followers.size > 0) {
+        await this.notifications.fanOut({
+          orgId,
+          recipientIds: [...followers],
+          type: 'comment',
+          title: `New comment on ${task.key} ${task.title}`.trim(),
+          body: null,
+          entity: { type: 'comment', id: comment._id.toString() },
+          excludeUserId: actorId,
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Comment follower notification failed: ${(err as Error).message}`);
     }
 
     await this.emit('comment.created', comment, task, actorId, meta, { verb: 'commented on' });

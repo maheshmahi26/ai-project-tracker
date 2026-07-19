@@ -45,6 +45,23 @@ export default function AiChatPage(): React.JSX.Element {
   const [renameTarget, setRenameTarget] = useState<ChatSessionDTO | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Open the most recent session when landing on /chat without an id, so the tab
+  // resumes the last conversation instead of always showing a blank chat. Runs
+  // once per mount so the explicit "New chat" action isn't bounced back.
+  const didAutoResume = useRef(false);
+
+  useEffect(() => {
+    if (didAutoResume.current) return;
+    if (sessionId) {
+      didAutoResume.current = true;
+      return;
+    }
+    const latest = sessions.data?.[0];
+    if (!sessions.isLoading && latest) {
+      didAutoResume.current = true;
+      navigate(`/chat/${latest.id}`, { replace: true });
+    }
+  }, [sessionId, sessions.isLoading, sessions.data, navigate]);
 
   // After creating a session for the very first message, send it once we've
   // navigated to the new session route (the send hook rebinds to the new id).

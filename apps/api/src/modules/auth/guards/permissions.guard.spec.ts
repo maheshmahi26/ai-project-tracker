@@ -24,8 +24,8 @@ describe('PermissionsGuard', () => {
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it('blocks a viewer from project:create', () => {
-    const ctx = contextWithRole('viewer', ['project:create']);
+  it('blocks a tester from project:create', () => {
+    const ctx = contextWithRole('tester', ['project:create']);
     expect(() => guard.canActivate(ctx)).toThrow();
   });
 
@@ -42,7 +42,7 @@ describe('PermissionsGuard', () => {
   });
 
   it('passes through when no permissions are required', () => {
-    const ctx = contextWithRole('viewer', []);
+    const ctx = contextWithRole('tester', []);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 });

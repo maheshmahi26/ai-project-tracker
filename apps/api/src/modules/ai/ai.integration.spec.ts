@@ -116,8 +116,8 @@ describe('AI chat + agent (integration)', () => {
 
   maybe('exposes role-scoped tool introspection', async () => {
     const c = ctx!;
-    expect(c.toolRegistry.toInfo('viewer').map((t) => t.name)).toContain('whoAmI');
-    expect(c.toolRegistry.functionDeclarations('viewer').map((d) => d.name)).toContain('whoAmI');
+    expect(c.toolRegistry.toInfo('tester').map((t) => t.name)).toContain('whoAmI');
+    expect(c.toolRegistry.functionDeclarations('tester').map((d) => d.name)).toContain('whoAmI');
   });
 
   maybe('rejects reading another user session messages', async () => {

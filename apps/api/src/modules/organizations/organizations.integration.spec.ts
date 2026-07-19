@@ -55,11 +55,11 @@ describe('Organizations + RBAC (integration)', () => {
     const viewerId = await registerUser(ctx, 'viewer@example.com');
     const org = await ctx.orgs.createOrg(adminId, { name: 'Rbac Org', timezone: 'UTC' }, meta);
 
-    await ctx.orgs.inviteMember(org.id, adminId, { email: 'viewer@example.com', role: 'viewer' }, meta);
+    await ctx.orgs.inviteMember(org.id, adminId, { email: 'viewer@example.com', role: 'tester' }, meta);
 
-    // Viewer can read.
+    // Tester can read.
     const read = await ctx.orgs.getOrg(org.id, viewerId);
-    expect(read.role).toBe('viewer');
+    expect(read.role).toBe('tester');
 
     // Viewer cannot update settings or manage members.
     await expect(ctx.orgs.updateOrg(org.id, viewerId, { name: 'Nope' }, meta)).rejects.toThrow();
@@ -102,7 +102,7 @@ describe('Organizations + RBAC (integration)', () => {
 
     // Cannot demote the only admin.
     await expect(
-      ctx.orgs.changeMemberRole(org.id, adminId, adminId, 'viewer', meta),
+      ctx.orgs.changeMemberRole(org.id, adminId, adminId, 'tester', meta),
     ).rejects.toThrow();
 
     // Cannot remove the owner.

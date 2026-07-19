@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bot,
   CheckSquare,
@@ -28,6 +28,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
+import { AssistantWidget } from '@/features/ai-chat/components/assistant-widget';
 import { PageSkeleton } from '@/components/skeletons/page-skeleton';
 import { useUiStore } from '@/stores/ui-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -188,6 +189,10 @@ function TopBar(): React.JSX.Element {
 
 /** Authenticated app shell: sidebar + top bar + routed content. */
 export function AppShell(): React.JSX.Element {
+  const location = useLocation();
+  // The full-page assistant already provides chat; hide the floating widget there.
+  const onChatPage = location.pathname.startsWith('/chat');
+
   return (
     <div className="flex h-screen w-full overflow-hidden">
       <Sidebar />
@@ -200,6 +205,7 @@ export function AppShell(): React.JSX.Element {
         </main>
       </div>
       <CommandPalette />
+      {!onChatPage && <AssistantWidget />}
     </div>
   );
 }

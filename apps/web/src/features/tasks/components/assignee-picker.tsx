@@ -1,4 +1,5 @@
 import { UserCircle2 } from 'lucide-react';
+import { isAssignableRole } from '@ai-projectos/shared';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,8 @@ export function AssigneePicker({
 }): React.JSX.Element {
   const { members, byId } = useMembers();
   const current = byId(value);
+  // Only developers and testers can own task work.
+  const assignable = members.filter((m) => isAssignableRole(m.role));
 
   return (
     <DropdownMenu>
@@ -58,7 +61,7 @@ export function AssigneePicker({
           <UserCircle2 />
           Unassigned
         </DropdownMenuItem>
-        {members.map((m) => (
+        {assignable.map((m) => (
           <DropdownMenuItem key={m.userId} onSelect={() => onChange(m.userId)}>
             <Avatar className="size-5 text-[10px]">
               <AvatarFallback className="text-[inherit]">{initials(m.name)}</AvatarFallback>

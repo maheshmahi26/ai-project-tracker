@@ -35,6 +35,7 @@ vi.mock('../components/dashboard-widgets', () => ({
   BurndownWidget: () => <div>burndown</div>,
   TasksPerUserWidget: () => <div>tasks-per-user</div>,
   ProjectProgressWidget: () => <div>project-progress</div>,
+  TeamByRoleWidget: () => <div>team-by-role</div>,
 }));
 vi.mock('../components/weekly-report', () => ({ WeeklyReport: () => <div>weekly</div> }));
 vi.mock('@/features/activity/components/activity-feed', () => ({

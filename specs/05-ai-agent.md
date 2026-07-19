@@ -83,8 +83,15 @@ createTask, updateTask, deleteTask, bulkUpdateTasks, bulkDeleteTasks,
 assignTask, moveTask, searchTasks,
 createProject, updateProject, archiveProject, deleteProject,
 createSprint, addTasksToSprint, completeSprint,
-addComment, createLabel, uploadDocument
+addComment, createLabel, uploadDocument,
+createUser, bulkCreateUsers, removeUser, bulkRemoveUsers   // admin-only (manage:users)
 ```
+
+Notes on domain rules the tools inherit from the services:
+- `createTask`/`updateTask`/`bulkUpdateTasks` accept a `type` argument (`story|task|bug`, default `task`).
+- `createTask`/`assignTask` only accept **developer/tester** assignees; other roles are rejected. Subtasks default to the parent's assignee.
+- `createProject`/`updateProject` only accept a **manager**-role `lead`, and a manager can lead one project.
+- The `createUser`/`removeUser` family requires `manage:users`, so only admins are ever offered these tools; the removal tools are confirm-gated.
 
 **Generative / analytical**:
 ```

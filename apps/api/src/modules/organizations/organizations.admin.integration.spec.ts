@@ -76,7 +76,7 @@ describe('Admin user management (integration)', () => {
         ctx.orgs.createMember(
           org.id,
           dev.userId,
-          { email: uniqueEmail(), name: 'X', password: 'password123', role: 'viewer' },
+          { email: uniqueEmail(), name: 'X', password: 'password123', role: 'tester' },
           META,
         ),
       ).rejects.toThrow();
@@ -145,7 +145,7 @@ describe('Admin user management (integration)', () => {
       const invited = await ctx.orgs.inviteMember(
         org.id,
         admin.userId,
-        { email: uniqueEmail('inv'), role: 'viewer' },
+        { email: uniqueEmail('inv'), role: 'tester' },
         META,
       );
 

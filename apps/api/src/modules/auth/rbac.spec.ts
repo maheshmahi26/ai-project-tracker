@@ -25,16 +25,17 @@ describe('RBAC permission matrix', () => {
     expect(can('developer', 'manage:users')).toBe(false);
   });
 
-  it('restricts viewers to read-only', () => {
-    expect(can('viewer', 'read')).toBe(true);
-    expect(can('viewer', 'task:create')).toBe(false);
-    expect(can('viewer', 'project:create')).toBe(false);
-    expect(can('viewer', 'manage:org')).toBe(false);
-    expect(ROLE_PERMISSIONS.viewer).toEqual(['read']);
+  it('gives testers the same task reach as developers but no project/user admin', () => {
+    expect(can('tester', 'task:create')).toBe(true);
+    expect(can('tester', 'task:update')).toBe(true);
+    expect(can('tester', 'task:assign')).toBe(true);
+    expect(can('tester', 'project:create')).toBe(false);
+    expect(can('tester', 'manage:users')).toBe(false);
+    expect(ROLE_PERMISSIONS.tester).toEqual(ROLE_PERMISSIONS.developer);
   });
 
   it('grants every role read access', () => {
-    for (const role of ['admin', 'manager', 'developer', 'viewer'] as const) {
+    for (const role of ['admin', 'manager', 'developer', 'tester'] as const) {
       expect(can(role, 'read')).toBe(true);
     }
   });

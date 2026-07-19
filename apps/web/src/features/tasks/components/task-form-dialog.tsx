@@ -4,10 +4,12 @@ import { toast } from 'sonner';
 import {
   TASK_PRIORITIES,
   TASK_STATUSES,
+  TASK_TYPES,
   type CreateTaskInput,
   type TaskDTO,
   type TaskPriority,
   type TaskStatus,
+  type TaskType,
   type UpdateTaskInput,
 } from '@ai-projectos/shared';
 import { Button } from '@/components/ui/button';
@@ -22,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { STATUS_LABELS } from './task-badges';
+import { STATUS_LABELS, TASK_TYPE_LABELS } from './task-badges';
 import { AssigneePicker } from './assignee-picker';
 import { useCreateTask, useUpdateTask } from '../hooks/use-tasks';
 
@@ -39,6 +41,7 @@ const selectClass =
 interface FormValues {
   title: string;
   description: string;
+  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   assigneeId: string | null;
@@ -50,6 +53,7 @@ function toFormValues(task: TaskDTO | undefined, defaultStatus?: TaskStatus): Fo
   return {
     title: task?.title ?? '',
     description: task?.description ?? '',
+    type: task?.type ?? 'task',
     status: task?.status ?? defaultStatus ?? 'todo',
     priority: task?.priority ?? 'medium',
     assigneeId: task?.assigneeId ?? null,
@@ -105,6 +109,7 @@ export function TaskFormDialog({
       const input: UpdateTaskInput = {
         title: values.title.trim(),
         description: values.description.trim() ? values.description : null,
+        type: values.type,
         status: values.status,
         priority: values.priority,
         assigneeId: values.assigneeId,
@@ -118,6 +123,7 @@ export function TaskFormDialog({
         projectId,
         title: values.title.trim(),
         description: values.description.trim() || undefined,
+        type: values.type,
         status: values.status,
         priority: values.priority,
         assigneeId: values.assigneeId ?? undefined,
@@ -159,7 +165,17 @@ export function TaskFormDialog({
             <Textarea id="task-description" rows={3} {...register('description')} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-type">Type</Label>
+              <select id="task-type" className={selectClass} {...register('type')}>
+                {TASK_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TASK_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="task-status">Status</Label>
               <select id="task-status" className={selectClass} {...register('status')}>

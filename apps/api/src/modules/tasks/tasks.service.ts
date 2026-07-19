@@ -12,12 +12,14 @@ import {
   type TaskDTO,
   type UpdateTaskInput,
 } from '@ai-projectos/shared';
+import { isAssignableRole } from '@ai-projectos/shared';
 import { AppException } from '../../common/errors/app-exception';
 import { runInTransaction } from '../../common/db/transaction';
 import { buildCursorPage, decodeCursor, PaginatedResult } from '../../common/pagination/pagination';
 import type { RequestMeta } from '../auth/auth.service';
 import { DomainEventBus } from '../events/domain-event-bus';
 import type { DomainEventName } from '../events/domain-event';
+import { MembershipsService } from '../organizations/memberships.service';
 import { ProjectsService } from '../projects/projects.service';
 import { SprintsService } from '../sprints/sprints.service';
 import { TasksRepository, type TaskLean } from './tasks.repository';
@@ -33,8 +35,21 @@ export class TasksService {
     @Inject(forwardRef(() => SprintsService))
     private readonly sprints: SprintsService,
     private readonly events: DomainEventBus,
+    private readonly memberships: MembershipsService,
     @InjectConnection() private readonly connection: Connection,
   ) {}
+
+  /**
+   * Only developers and testers may own task work. Throws if `assigneeId` is a
+   * member whose role is not assignable. No-op for a null/undefined assignee.
+   */
+  private async assertAssignable(orgId: string, assigneeId?: string | null): Promise<void> {
+    if (!assigneeId) return;
+    const role = await this.memberships.getRole(orgId, assigneeId);
+    if (!role || !isAssignableRole(role)) {
+      throw AppException.businessRule('Only developers and testers can be assigned to a task');
+    }
+  }
 
   async createTask(
     orgId: string,
@@ -44,6 +59,8 @@ export class TasksService {
   ): Promise<TaskDTO> {
     let projectId = input.projectId;
     let parentId: Types.ObjectId | null = null;
+    // A subtask with no explicit assignee inherits its parent's assignee.
+    let assigneeId: string | null = input.assigneeId ?? null;
 
     if (input.parentId) {
       const parent = await this.requireTask(orgId, input.parentId);
@@ -52,10 +69,15 @@ export class TasksService {
       }
       projectId = parent.projectId.toString();
       parentId = parent._id;
+      if (input.assigneeId === undefined && parent.assigneeId) {
+        assigneeId = parent.assigneeId.toString();
+      }
     } else {
       // Throws NOT_FOUND if the project is missing (also enforces tenancy).
       await this.projects.getProject(orgId, projectId);
     }
+
+    await this.assertAssignable(orgId, assigneeId);
 
     if (input.sprintId) {
       await this.sprints.assertSprintInProject(orgId, projectId, input.sprintId);
@@ -75,9 +97,10 @@ export class TasksService {
           parentId,
           title: input.title,
           description: input.description ?? null,
+          type: input.type ?? 'task',
           status,
           priority: input.priority ?? 'medium',
-          assigneeId: input.assigneeId ? new Types.ObjectId(input.assigneeId) : null,
+          assigneeId: assigneeId ? new Types.ObjectId(assigneeId) : null,
           reporterId: new Types.ObjectId(actorId),
           labelIds: (input.labelIds ?? []).map((id) => new Types.ObjectId(id)),
           storyPoints: input.storyPoints ?? null,
@@ -97,7 +120,26 @@ export class TasksService {
   }
 
   async getTask(orgId: string, id: string): Promise<TaskDTO> {
-    return toTaskDTO(await this.requireTask(orgId, id));
+    const task = await this.requireTask(orgId, id);
+    let parentKey: string | null = null;
+    if (task.parentId) {
+      const parent = await this.repo.findById(orgId, task.parentId.toString());
+      parentKey = parent?.key ?? null;
+    }
+    return toTaskDTO(task, parentKey);
+  }
+
+  /** Map rows to DTOs, batch-resolving each subtask's parent key for the UI. */
+  private async mapWithParentKeys(orgId: string, rows: TaskLean[]): Promise<TaskDTO[]> {
+    const parentIds = [
+      ...new Set(rows.filter((r) => r.parentId).map((r) => r.parentId!.toString())),
+    ];
+    if (parentIds.length === 0) return rows.map((r) => toTaskDTO(r));
+    const parents = await this.repo.findByIds(orgId, parentIds);
+    const keyById = new Map(parents.map((p) => [p._id.toString(), p.key]));
+    return rows.map((r) =>
+      toTaskDTO(r, r.parentId ? (keyById.get(r.parentId.toString()) ?? null) : null),
+    );
   }
 
   async listTasks(orgId: string, query: ListTasksQuery): Promise<PaginatedResult<TaskDTO>> {
@@ -117,7 +159,7 @@ export class TasksService {
         limit: query.limit,
       });
       const hasMore = rows.length > query.limit;
-      const items = (hasMore ? rows.slice(0, query.limit) : rows).map(toTaskDTO);
+      const items = await this.mapWithParentKeys(orgId, hasMore ? rows.slice(0, query.limit) : rows);
       return new PaginatedResult(items, { hasMore, nextCursor: null });
     }
 
@@ -133,13 +175,13 @@ export class TasksService {
       beforeId: decodeCursor(query.cursor) ?? undefined,
       limit: query.limit,
     });
-    return buildCursorPage(rows.map(toTaskDTO), query.limit, (item) => item.id);
+    return buildCursorPage(await this.mapWithParentKeys(orgId, rows), query.limit, (item) => item.id);
   }
 
   async listSubtasks(orgId: string, parentId: string, limit = 100): Promise<PaginatedResult<TaskDTO>> {
     await this.requireTask(orgId, parentId);
     const rows = await this.repo.listCursor({ orgId, parentId, limit });
-    return buildCursorPage(rows.map(toTaskDTO), limit, (item) => item.id);
+    return buildCursorPage(await this.mapWithParentKeys(orgId, rows), limit, (item) => item.id);
   }
 
   async updateTask(
@@ -154,9 +196,11 @@ export class TasksService {
     const set: Record<string, unknown> = {};
     if (input.title !== undefined) set.title = input.title;
     if (input.description !== undefined) set.description = input.description;
+    if (input.type !== undefined) set.type = input.type;
     if (input.status !== undefined) set.status = input.status;
     if (input.priority !== undefined) set.priority = input.priority;
     if (input.assigneeId !== undefined) {
+      await this.assertAssignable(orgId, input.assigneeId);
       set.assigneeId = input.assigneeId ? new Types.ObjectId(input.assigneeId) : null;
     }
     if (input.sprintId !== undefined) {
@@ -196,6 +240,7 @@ export class TasksService {
     meta: RequestMeta,
   ): Promise<TaskDTO> {
     const current = await this.requireTask(orgId, id);
+    await this.assertAssignable(orgId, input.assigneeId);
     const assigneeId = input.assigneeId ? new Types.ObjectId(input.assigneeId) : null;
     const updated = await this.repo.updateById(orgId, id, { $set: { assigneeId } });
     if (!updated) throw AppException.notFound('Task not found');
@@ -291,9 +336,13 @@ export class TasksService {
 
     const set: Record<string, unknown> = {};
     const p = input.patch;
+    if (p.type !== undefined) set.type = p.type;
     if (p.status !== undefined) set.status = p.status;
     if (p.priority !== undefined) set.priority = p.priority;
-    if (p.assigneeId !== undefined) set.assigneeId = p.assigneeId ? new Types.ObjectId(p.assigneeId) : null;
+    if (p.assigneeId !== undefined) {
+      await this.assertAssignable(orgId, p.assigneeId);
+      set.assigneeId = p.assigneeId ? new Types.ObjectId(p.assigneeId) : null;
+    }
     if (p.sprintId !== undefined) set.sprintId = p.sprintId ? new Types.ObjectId(p.sprintId) : null;
     if (p.labelIds !== undefined) set.labelIds = p.labelIds.map((lid) => new Types.ObjectId(lid));
     if (p.storyPoints !== undefined) set.storyPoints = p.storyPoints;
@@ -432,6 +481,7 @@ function snapshot(task: TaskLean): Record<string, unknown> {
   return {
     title: task.title,
     description: task.description ?? null,
+    type: task.type,
     status: task.status,
     priority: task.priority,
     assigneeId: task.assigneeId ? task.assigneeId.toString() : null,

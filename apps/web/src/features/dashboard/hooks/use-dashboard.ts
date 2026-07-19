@@ -65,6 +65,15 @@ export function useProjectProgress() {
   });
 }
 
+export function useUsersByRole() {
+  const orgId = useOrgStore((s) => s.activeOrgId);
+  return useQuery({
+    queryKey: queryKeys.dashboard.widget(orgId, 'users-by-role'),
+    queryFn: () => dashboardApi.usersByRole(),
+    staleTime: STALE_MS,
+  });
+}
+
 export function useWeeklyReport(scope: DashboardScope) {
   const orgId = useOrgStore((s) => s.activeOrgId);
   return useQuery({

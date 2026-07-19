@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { MembershipDTO, PublicUser } from '@ai-projectos/shared';
+import type { MembershipDTO, PublicUser, Role } from '@ai-projectos/shared';
 import { useOrgStore } from '@/stores/org-store';
 import { useOrgMembers } from '@/features/organizations/hooks/use-orgs';
 
@@ -7,6 +7,7 @@ export interface MemberOption {
   userId: string;
   name: string;
   email: string;
+  role: Role;
 }
 
 /** Active-org members plus a `userId → member` lookup for assignee/mention UIs. */
@@ -27,6 +28,7 @@ export function useMembers(): {
           userId: m.userId,
           name: user?.name ?? user?.email ?? 'Unknown user',
           email: user?.email ?? '',
+          role: m.role,
         };
       });
   }, [data]);

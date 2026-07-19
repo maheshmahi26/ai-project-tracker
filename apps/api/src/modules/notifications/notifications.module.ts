@@ -3,6 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
 import { MailModule } from '../mail/mail.module';
+import { ProjectsModule } from '../projects/projects.module';
+import { TasksModule } from '../tasks/tasks.module';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { NotificationsListener } from './notifications.listener';
@@ -17,6 +19,8 @@ import { Notification, NotificationSchema } from './schemas/notification.schema'
     OrganizationsModule,
     UsersModule,
     MailModule,
+    ProjectsModule,
+    TasksModule,
     MongooseModule.forFeature([{ name: Notification.name, schema: NotificationSchema }]),
   ],
   controllers: [NotificationsController],

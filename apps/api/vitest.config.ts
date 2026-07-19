@@ -6,6 +6,11 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     globals: false,
+    // Integration specs spin up an in-memory MongoDB in their setup hooks. When
+    // many files run in parallel these startups contend for CPU/IO, so the tight
+    // Vitest defaults (10s hook / 5s test) flake. Give them headroom.
+    hookTimeout: 30_000,
+    testTimeout: 20_000,
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary', 'lcov'],

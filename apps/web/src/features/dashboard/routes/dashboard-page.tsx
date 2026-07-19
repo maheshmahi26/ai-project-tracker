@@ -13,6 +13,7 @@ import {
   PriorityWidget,
   ProjectProgressWidget,
   TasksPerUserWidget,
+  TeamByRoleWidget,
   VelocityWidget,
 } from '../components/dashboard-widgets';
 import { WeeklyReport } from '../components/weekly-report';
@@ -92,6 +93,7 @@ export default function DashboardPage(): React.JSX.Element {
         <BurndownWidget projectId={scope.projectId} />
         <TasksPerUserWidget projectId={scope.projectId} />
         <ProjectProgressWidget />
+        <TeamByRoleWidget />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

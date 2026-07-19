@@ -59,7 +59,7 @@ Membership is embedded as its own collection for scale:
 
 ### 2b. Memberships
 ```
-{ _id, orgId, userId, role: 'admin'|'manager'|'developer'|'viewer',
+{ _id, orgId, userId, role: 'admin'|'manager'|'developer'|'tester',
   invitedBy?, joinedAt, status: 'active'|'invited' }
 ```
 Indexes: `{ orgId:1, userId:1 } unique`, `{ userId:1 }`.
@@ -68,7 +68,8 @@ Indexes: `{ orgId:1, userId:1 } unique`, `{ userId:1 }`.
 ```
 {
   _id, orgId, key (e.g. "AUTH", unique per org), name, description,
-  leadId (User), status: 'active'|'archived',
+  leadId (User — the project "manager"; must have the manager role and can lead only one project),
+  status: 'active'|'archived',
   color, startDate?, targetDate?,
   counters: { taskSeq },            // for human task keys AUTH-123
   createdAt, updatedAt, isDeleted, deletedAt
@@ -93,8 +94,9 @@ Indexes: `{ orgId:1, projectId:1, status:1 }`.
 {
   _id, orgId, projectId, sprintId?,
   key: "AUTH-123",                  // human-readable, from project counter
-  parentId?,                        // subtask → parent task
+  parentId?,                        // subtask → parent task (depth 1; a subtask cannot have subtasks)
   title, description (rich text/JSON),
+  type: 'story'|'task'|'bug',       // work-item type (default 'task'), shown with an icon on cards
   status: 'backlog'|'todo'|'in_progress'|'in_review'|'done',
   priority: 'low'|'medium'|'high'|'urgent',
   assigneeId?, reporterId,

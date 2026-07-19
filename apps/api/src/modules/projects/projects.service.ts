@@ -16,6 +16,7 @@ import {
 import type { RequestMeta } from '../auth/auth.service';
 import { DomainEventBus } from '../events/domain-event-bus';
 import type { DomainEventName } from '../events/domain-event';
+import { MembershipsService } from '../organizations/memberships.service';
 import { ProjectsRepository, type ProjectLean } from './projects.repository';
 import { deriveKeyBase, toProjectDTO } from './projects.mapper';
 
@@ -26,6 +27,7 @@ export class ProjectsService {
   constructor(
     private readonly repo: ProjectsRepository,
     private readonly events: DomainEventBus,
+    private readonly memberships: MembershipsService,
   ) {}
 
   async createProject(
@@ -37,6 +39,8 @@ export class ProjectsService {
     const key = input.key
       ? await this.ensureKeyAvailable(orgId, input.key)
       : await this.generateKey(orgId, input.name);
+
+    if (input.leadId) await this.assertAssignableManager(orgId, input.leadId, null);
 
     let project: ProjectLean;
     try {
@@ -124,6 +128,7 @@ export class ProjectsService {
     if (input.description !== undefined) set.description = input.description;
     if (input.color !== undefined) set.color = input.color;
     if (input.leadId !== undefined) {
+      if (input.leadId) await this.assertAssignableManager(orgId, input.leadId, id);
       set.leadId = input.leadId ? new Types.ObjectId(input.leadId) : null;
     }
     if (input.startDate !== undefined) set.startDate = toDate(input.startDate);
@@ -224,6 +229,29 @@ export class ProjectsService {
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * A project's lead is its manager. Enforce two rules: the user must hold the
+   * `manager` role in this org, and a manager may lead at most one active
+   * project. `currentProjectId` is excluded so re-saving a project's own lead
+   * is allowed.
+   */
+  private async assertAssignableManager(
+    orgId: string,
+    leadId: string,
+    currentProjectId: string | null,
+  ): Promise<void> {
+    const role = await this.memberships.getRole(orgId, leadId);
+    if (role !== 'manager') {
+      throw AppException.businessRule('A project manager must be a member with the manager role');
+    }
+    const existing = await this.repo.findByLead(orgId, leadId);
+    if (existing && existing._id.toString() !== currentProjectId) {
+      throw AppException.businessRule(
+        `That manager already leads project ${existing.key}; a manager can lead only one project`,
+      );
+    }
+  }
 
   private async ensureKeyAvailable(orgId: string, key: string): Promise<string> {
     const normalized = key.toUpperCase();

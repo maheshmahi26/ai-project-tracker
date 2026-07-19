@@ -4,6 +4,7 @@ import type {
   PriorityDistributionDTO,
   ProjectProgressDTO,
   TasksPerUserDTO,
+  UsersByRoleDTO,
   VelocityPointDTO,
   WeeklyReportDTO,
 } from '@ai-projectos/shared';
@@ -43,6 +44,9 @@ export const dashboardApi = {
 
   projectProgress: (): Promise<ProjectProgressDTO[]> =>
     apiClient.get<ProjectProgressDTO[]>('/dashboard/project-progress'),
+
+  usersByRole: (): Promise<UsersByRoleDTO> =>
+    apiClient.get<UsersByRoleDTO>('/dashboard/users-by-role'),
 
   weekly: (scope: DashboardScope): Promise<WeeklyReportDTO> =>
     apiClient.get<WeeklyReportDTO>('/reports/weekly', { params: scopeParams(scope) }),

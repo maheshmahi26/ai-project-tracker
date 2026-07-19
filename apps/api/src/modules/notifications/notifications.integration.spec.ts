@@ -80,9 +80,10 @@ describe('Notifications backend (integration)', () => {
 
   it('does not notify on self-assignment', async (t) => {
     if (!ctx) return t.skip();
-    const { orgId, ownerId, taskId } = await setup(ctx);
-    await ctx.tasks.assignTask(orgId, ownerId, taskId, { assigneeId: ownerId }, meta);
-    const inbox = await ctx.notifications.list(orgId, ownerId, { limit: 25 });
+    // Only developers/testers can be assigned, so a member assigns to themselves.
+    const { orgId, memberId, taskId } = await setup(ctx);
+    await ctx.tasks.assignTask(orgId, memberId, taskId, { assigneeId: memberId }, meta);
+    const inbox = await ctx.notifications.list(orgId, memberId, { limit: 25 });
     expect(inbox.items).toHaveLength(0);
   });
 

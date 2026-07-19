@@ -5,9 +5,11 @@ import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import {
   TASK_PRIORITIES,
   TASK_STATUSES,
+  TASK_TYPES,
   type TaskDTO,
   type TaskPriority,
   type TaskStatus,
+  type TaskType,
 } from '@ai-projectos/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,7 +25,7 @@ import { TaskDescription } from '../components/task-description';
 import { TaskFormDialog } from '../components/task-form-dialog';
 import { SubtasksSection } from '../components/subtasks-section';
 import { AssigneePicker } from '../components/assignee-picker';
-import { PriorityBadge } from '../components/task-badges';
+import { PriorityBadge, TaskTypeIcon, TASK_TYPE_LABELS } from '../components/task-badges';
 import { STATUS_LABELS } from '../components/task-badges';
 import { useAssignTask, useDeleteTask, useTask, useUpdateTask, useUndoDeleteTask } from '../hooks/use-tasks';
 
@@ -49,6 +51,29 @@ function DetailsSidebar({ task }: { task: TaskDTO }): React.JSX.Element {
   return (
     <Card>
       <CardContent className="space-y-4 pt-6 text-sm">
+        <div className="space-y-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Type</span>
+          {canUpdate ? (
+            <select
+              className={`${selectClass} w-full`}
+              value={task.type}
+              onChange={(e) =>
+                update.mutate({ id: task.id, input: { type: e.target.value as TaskType } })
+              }
+            >
+              {TASK_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {TASK_TYPE_LABELS[t]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <TaskTypeIcon type={task.type} withLabel />
+            </span>
+          )}
+        </div>
+
         <div className="space-y-1.5">
           <span className="text-xs font-medium text-muted-foreground">Status</span>
           {canUpdate ? (
@@ -186,7 +211,18 @@ export default function TaskDetailPage(): React.JSX.Element {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
-          <p className="font-mono text-xs text-muted-foreground">{task.key}</p>
+          <div className="flex items-center gap-2">
+            <TaskTypeIcon type={task.type} withLabel />
+            <span className="font-mono text-xs text-muted-foreground">{task.key}</span>
+            {task.parentId ? (
+              <Link
+                to={`/tasks/${task.parentId}`}
+                className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                Subtask of {task.parentKey ?? 'parent'}
+              </Link>
+            ) : null}
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">{task.title}</h1>
         </div>
         <div className="flex items-center gap-2">
